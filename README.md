@@ -2,6 +2,8 @@
 
 Interactive visualisation of the Weierstrass elliptic function using domain colouring.
 
+Live demo: https://grge.github.io/weierstrass/
+
 ## The Mathematics
 
 The Weierstrass ℘-function is doubly periodic with respect to a lattice Λ = ℤω₁ + ℤω₂. It satisfies:
