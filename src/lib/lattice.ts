@@ -1,0 +1,55 @@
+import type { Vec2 } from "./types";
+
+export const LATTICE_EPS = 1e-8;
+
+export function det(omega1: Vec2, omega2: Vec2): number {
+  return omega1.x * omega2.y - omega1.y * omega2.x;
+}
+
+export function isDegenerateBasis(omega1: Vec2, omega2: Vec2, eps = LATTICE_EPS): boolean {
+  return Math.abs(det(omega1, omega2)) < eps;
+}
+
+export function fromLatticeCoords(u: number, v: number, omega1: Vec2, omega2: Vec2): Vec2 {
+  return {
+    x: u * omega1.x + v * omega2.x,
+    y: u * omega1.y + v * omega2.y,
+  };
+}
+
+export function toLatticeCoords(z: Vec2, omega1: Vec2, omega2: Vec2, eps = LATTICE_EPS): Vec2 {
+  const d = det(omega1, omega2);
+  const safeDet = Math.abs(d) < eps ? (d < 0 ? -eps : eps) : d;
+  return {
+    x: (z.x * omega2.y - z.y * omega2.x) / safeDet,
+    y: (-z.x * omega1.y + z.y * omega1.x) / safeDet,
+  };
+}
+
+export function reduceToFundamental(z: Vec2, omega1: Vec2, omega2: Vec2): Vec2 {
+  const uv = toLatticeCoords(z, omega1, omega2);
+  const uf = ((uv.x % 1) + 1) % 1;
+  const vf = ((uv.y % 1) + 1) % 1;
+  return fromLatticeCoords(uf, vf, omega1, omega2);
+}
+
+export function tauFromBasis(omega1: Vec2, omega2: Vec2): Vec2 {
+  const d = omega1.x * omega1.x + omega1.y * omega1.y;
+  const safe = d > 1e-12 ? d : 1e-12;
+  return {
+    x: (omega2.x * omega1.x + omega2.y * omega1.y) / safe,
+    y: (omega2.y * omega1.x - omega2.x * omega1.y) / safe,
+  };
+}
+
+export function basisFromTau(tau: Vec2, scale = 1, angle = 0): { omega1: Vec2; omega2: Vec2 } {
+  const omega1 = {
+    x: scale * Math.cos(angle),
+    y: scale * Math.sin(angle),
+  };
+  const omega2 = {
+    x: omega1.x * tau.x - omega1.y * tau.y,
+    y: omega1.x * tau.y + omega1.y * tau.x,
+  };
+  return { omega1, omega2 };
+}
