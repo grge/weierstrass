@@ -40,7 +40,7 @@ The codebase follows a functional style with minimal abstractions.
 
 **Shaders:** `tile.frag` implements ℘ evaluation and four domain colouring modes (classic conformal rings, warm ember tones, gentle dusk phase portrait, and dark contour lines). The fragment shader computes the lattice sum directly in GLSL. `screen.frag` handles the tiling or direct display.
 
-**Viewport.svelte** manages the canvas, user interaction (pan, zoom, dragging lattice vectors), and overlay drawing. The overlay is a separate 2D canvas layer that renders the lattice grid, fundamental cell outline, and pole/zero markers.
+**Viewport.svelte** manages the canvas, user interaction (pan, zoom, dragging lattice vectors), and overlay drawing. The overlay is a separate 2D canvas layer that renders the lattice grid, fundamental cell outline, and pole/zero markers. Both the GL tile render and the overlay draw are driven by a single Svelte effect, which means overlay-only changes (toggling grid lines, cell outline, etc.) also trigger a GPU re-render. The practical cost is low since these are infrequent interactions, but it is a known architectural simplification.
 
 **Controls.svelte** and **TauPicker.svelte** provide the sidebar UI for adjusting lattice shape, visual parameters, and performance settings.
 

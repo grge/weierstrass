@@ -77,9 +77,19 @@
     zeros = nextZeros;
   });
 
+  // ── Combined render effect ───────────────────────────────────────────────
+  //
+  // NOTE: This single effect handles both the GL tile render and the 2D overlay
+  // draw. That means any overlay-only state change (e.g. toggling showGrid,
+  // showCell, or showSpecialPoints) triggers a full GPU re-render as a side
+  // effect, even though the GL output is unchanged.
+  //
+  // Splitting into separate GL and overlay effects would avoid this, but the
+  // practical impact is low: overlay toggles are infrequent, and the dominant
+  // cost during interactive use (anchor dragging) changes omega1/omega2 which
+  // requires a GL re-render anyway. Revisit if overlay interactivity becomes
+  // significantly more complex.
   $effect(() => {
-    void resourceVersion;
-    void sizeVersion;
     if (!resources || !glCanvas || !overlayCanvas) return;
     const dpr = Math.min(devicePixelRatio ?? 1, 2);
     const w = Math.max(1, Math.floor(container.clientWidth  * dpr));
