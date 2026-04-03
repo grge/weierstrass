@@ -1,6 +1,10 @@
 <script lang="ts">
-  import type { Vec2, ColorMode, ViewMode } from "$lib/types";
+  import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
   import TauPicker from "./TauPicker.svelte";
+
+  const COLOR_MODE_INDEX: Record<ColorMode, RenderMode> = {
+    classic: 0, ember: 1, dusk: 2, contours: 3,
+  };
 
   let {
     omega1 = $bindable(),
@@ -36,7 +40,7 @@
 <!-- ── Lattice shape ────────────────────────────────── -->
 <details open>
   <summary>Lattice shape (&#964;)</summary>
-  <TauPicker bind:omega1 bind:omega2 />
+  <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} />
 </details>
 
 <!-- ── Domain colouring ─────────────────────────────── -->

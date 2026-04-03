@@ -1,11 +1,18 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { Vec2 } from "$lib/types";
+  import type { RenderMode } from "$lib/types";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
+  import {
+    createModularResources, destroyModularResources, renderModular,
+    type ModularFunc,
+  } from "$lib/modular_gl";
 
   let {
     omega1 = $bindable(),
     omega2 = $bindable(),
-  }: { omega1: Vec2; omega2: Vec2 } = $props();
+    colorMode = 2,   // default dusk — matches main viewport default
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -13,12 +20,10 @@
     return { x: tau.x, y: Math.max(tau.y, MIN_TAU_IM) };
   }
 
-  // Derived: scale = |omega1|
   function getScale(o1: Vec2): number {
     return Math.sqrt(o1.x * o1.x + o1.y * o1.y);
   }
 
-  // Apply a new tau, preserving omega1 exactly
   function applyTau(tau: Vec2) {
     const t = normalizeTau(tau);
     const angle = Math.atan2(omega1.y, omega1.x);
@@ -28,7 +33,6 @@
     omega2 = basis.omega2;
   }
 
-  // Apply a new scale factor, preserving tau (scale both equally)
   function applyScale(newScale: number) {
     const s = getScale(omega1);
     if (s < 1e-12) return;
@@ -37,31 +41,20 @@
     omega2 = { x: omega2.x * f, y: omega2.y * f };
   }
 
-  // Reset scale to 1.0, preserving tau and rotation
-  function resetScale() {
-    applyScale(1.0);
-  }
+  function resetScale() { applyScale(1.0); }
+  function setHex()    { applyTau({ x: 0.5, y: Math.sqrt(3) / 2 }); }
+  function setSquare() { applyTau({ x: 0, y: 1 }); }
 
-  // Hexagonal lattice: tau = e^(iπ/3) = 0.5 + i√3/2
-  function setHex() {
-    applyTau({ x: 0.5, y: Math.sqrt(3) / 2 });
-  }
-
-  // Square lattice: tau = i
-  function setSquare() {
-    applyTau({ x: 0, y: 1 });
-  }
-
-  // ── Canvas picker ──────────────────────────────────────────────────
-  let canvas: HTMLCanvasElement;
+  // ── Viewport ──────────────────────────────────────────────────────
   const W = 200;
   const H = 100;
-  const RANGE = 2.5; // world units shown on each axis half
+  // Visible τ region: Re ∈ [-RANGE, RANGE], Im ∈ [0, RANGE]
+  const RANGE = 2.5;
 
   function worldToCanvas(wx: number, wy: number): [number, number] {
     return [
       (wx / RANGE + 1) * 0.5 * W,
-      (1 - wy / RANGE) * H,            // y: [0, RANGE] → [H, 0]
+      (1 - wy / RANGE) * H,
     ];
   }
 
@@ -72,6 +65,44 @@
     };
   }
 
+  // ── Modular background ────────────────────────────────────────────
+  let modularFunc: ModularFunc | "none" = $state("none");
+
+  let glCanvas: HTMLCanvasElement;
+  let glResources: ReturnType<typeof createModularResources> | null = null;
+
+  onMount(() => {
+    const gl = glCanvas.getContext("webgl", {
+      antialias: false,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: false,
+    });
+    if (!gl) return;
+    try {
+      glResources = createModularResources(gl);
+    } catch (e) {
+      console.error("Modular GL init failed:", e);
+      return;
+    }
+    return () => {
+      if (glResources) { destroyModularResources(glResources); glResources = null; }
+    };
+  });
+
+  $effect(() => {
+    if (modularFunc === "none" || !glResources) return;
+    renderModular(
+      glResources,
+      modularFunc,
+      colorMode,
+      -RANGE, RANGE,   // x range
+      0, RANGE,        // y range (upper half-plane)
+      W, H,
+    );
+  });
+
+  // ── Interaction ───────────────────────────────────────────────────
+  let overlay: HTMLCanvasElement;
   let dragging = false;
 
   function onPointerDown(e: PointerEvent) {
@@ -89,70 +120,73 @@
   }
 
   function moveTo(e: PointerEvent) {
-    const rect = canvas.getBoundingClientRect();
+    const rect = overlay.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (W / rect.width);
     const cy = (e.clientY - rect.top)  * (H / rect.height);
     applyTau(canvasToWorld(cx, cy));
   }
 
-  // ── Draw ──────────────────────────────────────────────────────────
+  // ── Overlay draw (2D) ─────────────────────────────────────────────
   $effect(() => {
     const tau = tauFromBasis(omega1, omega2);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
+    if (!overlay) return;
+    const hasBackground = modularFunc !== "none";
+    const ctx = overlay.getContext("2d", { alpha: true })!;
     ctx.clearRect(0, 0, W, H);
 
-    // Background
-    ctx.fillStyle = '#1a1210';
-    ctx.fillRect(0, 0, W, H);
+    if (!hasBackground) {
+      // Solid background only when no GL layer
+      ctx.fillStyle = "#1a1210";
+      ctx.fillRect(0, 0, W, H);
+    }
 
-    // Horizontal grid lines (Im axis, positive values only)
-    ctx.strokeStyle = 'rgba(255,180,100,0.12)';
+    // Grid lines (more subtle when there's a modular background)
+    const gridAlpha = hasBackground ? 0.07 : 0.12;
+    ctx.strokeStyle = `rgba(255,180,100,${gridAlpha})`;
     ctx.lineWidth = 0.5;
     for (let v = 0; v <= 2; v++) {
       const [,y0] = worldToCanvas(-RANGE, v);
       ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
     }
-    // Vertical grid lines
     for (let u = -2; u <= 2; u++) {
       const [x0] = worldToCanvas(u, 0);
       ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, H); ctx.stroke();
     }
 
     // Axes
-    ctx.strokeStyle = 'rgba(255,180,100,0.35)';
+    const axisAlpha = hasBackground ? 0.25 : 0.35;
+    ctx.strokeStyle = `rgba(255,180,100,${axisAlpha})`;
     ctx.lineWidth = 1;
     const [ax] = worldToCanvas(0, 0);
     ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
-    // Real axis is the bottom edge — just highlight it
     ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(W, H); ctx.stroke();
 
     // Line from origin to tau
     const [ox, oy] = worldToCanvas(0, 0);
     const [tx, ty] = worldToCanvas(tau.x, tau.y);
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(tx, ty);
-    ctx.strokeStyle = 'rgba(255,150,60,0.5)';
+    ctx.strokeStyle = "rgba(255,150,60,0.5)";
     ctx.lineWidth = 1;
     ctx.stroke();
 
     // Tau dot
     ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,150,60,1)';
+    ctx.fillStyle = "rgba(255,150,60,1)";
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     // Label
     const tauLabel = `${tau.x.toFixed(2)} + ${tau.y.toFixed(2)}i`;
-    ctx.fillStyle = 'rgba(255,220,180,0.7)';
-    ctx.font = '10px monospace';
+    ctx.fillStyle = hasBackground ? "rgba(255,230,200,0.9)" : "rgba(255,220,180,0.7)";
+    ctx.font = "10px monospace";
     ctx.fillText(`τ = ${tauLabel}`, 4, H - 4);
   });
 
-  // Scale state — reactive derived
+  // ── Scale ─────────────────────────────────────────────────────────
   let scaleValue = $derived(getScale(omega1));
-  let logScale = $derived(Math.log2(scaleValue));
+  let logScale   = $derived(Math.log2(scaleValue));
 
   function onScaleSlider(e: Event) {
     const v = parseFloat((e.target as HTMLInputElement).value);
@@ -161,16 +195,27 @@
 </script>
 
 <div class="tau-section">
-  <canvas
-    bind:this={canvas}
-    width={W}
-    height={H}
-    class="tau-canvas"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
-  ></canvas>
+  <div class="canvas-stack">
+    <!-- GL layer: modular background -->
+    <canvas
+      bind:this={glCanvas}
+      width={W}
+      height={H}
+      class="tau-canvas gl-layer"
+      class:hidden={modularFunc === "none"}
+    ></canvas>
+    <!-- 2D layer: grid, axes, τ dot, labels — also captures pointer events -->
+    <canvas
+      bind:this={overlay}
+      width={W}
+      height={H}
+      class="tau-canvas overlay-layer"
+      onpointerdown={onPointerDown}
+      onpointermove={onPointerMove}
+      onpointerup={onPointerUp}
+      onpointercancel={onPointerUp}
+    ></canvas>
+  </div>
 
   <div class="tau-buttons">
     <button onclick={setSquare}>Square</button>
@@ -179,6 +224,17 @@
   <div class="tau-buttons">
     <button onclick={resetScale}>Scale = 1</button>
   </div>
+
+  <label class="inline-label">
+    <span>Background</span>
+    <select bind:value={modularFunc}>
+      <option value="none">None</option>
+      <option value="j">j(τ)</option>
+      <option value="delta">Δ(τ)</option>
+      <option value="e4">E4(τ)</option>
+      <option value="e6">E6(τ)</option>
+    </select>
+  </label>
 
   <label>
     <div class="slider-header">
@@ -202,13 +258,25 @@
     gap: 8px;
   }
 
-  .tau-canvas {
+  .canvas-stack {
+    position: relative;
     width: 100%;
     aspect-ratio: 2 / 1;
-    cursor: crosshair;
-    display: block;
     border: 1px solid rgba(255,150,60,0.2);
   }
+
+  .tau-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .gl-layer   { background: #1a1210; }
+  .overlay-layer { cursor: crosshair; }
+
+  .hidden { visibility: hidden; }
 
   .tau-buttons {
     display: flex;
@@ -240,11 +308,24 @@
     font-size: 0.72rem;
     color: rgba(255, 200, 150, 0.75);
   }
+  .inline-label {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
   .slider-header {
     display: flex;
     justify-content: space-between;
   }
   .val { color: rgba(255, 220, 180, 1); }
+  select {
+    background: #1a120f;
+    border: 1px solid rgba(255, 150, 60, 0.2);
+    color: rgba(255, 220, 180, 0.9);
+    padding: 0.2rem 0.4rem;
+    font-size: 0.72rem;
+    font-family: inherit;
+  }
   input[type=range] {
     width: 100%;
     accent-color: rgba(255, 150, 60, 0.8);
