@@ -3,6 +3,7 @@ varying vec2 v_uv;
 
 uniform int   u_func;    // 0=j, 1=delta, 2=e4, 3=e6
 uniform int   u_mode;    // colour palette index (matches tile.frag modes)
+uniform int   u_terms;   // q-series truncation depth
 uniform float u_x_min;
 uniform float u_x_max;
 uniform float u_y_min;
@@ -16,7 +17,7 @@ uniform float u_y_max;
 // E6(τ) = 1 - 504 Σ σ₅(n) qⁿ
 // where q = exp(2πiτ), convergent for Im(τ) > 0.
 
-const int MAX_N = 30;
+const int MAX_N = 60;  // hard cap; actual depth controlled by u_terms
 
 float sigma3(int n) {
   float s = 0.0;
@@ -40,6 +41,7 @@ vec2 eisensteinE4(vec2 q) {
   vec2 result = vec2(1.0, 0.0);
   vec2 qpow = q;
   for (int n = 1; n <= MAX_N; n++) {
+    if (n > u_terms) break;
     result += 240.0 * sigma3(n) * qpow;
     qpow = cMul(qpow, q);
   }
@@ -50,6 +52,7 @@ vec2 eisensteinE6(vec2 q) {
   vec2 result = vec2(1.0, 0.0);
   vec2 qpow = q;
   for (int n = 1; n <= MAX_N; n++) {
+    if (n > u_terms) break;
     result -= 504.0 * sigma5(n) * qpow;
     qpow = cMul(qpow, q);
   }

@@ -20,7 +20,8 @@
     viewMode = "plane",
     colorMode = $bindable(),
     tileUpdatesPerSec = 0,
-    modularRes = $bindable(2),
+    tauTileSize = $bindable(400),
+    tauTerms = $bindable(20),
   }: {
     omega1: Vec2;
     omega2: Vec2;
@@ -35,14 +36,15 @@
     viewMode: ViewMode;
     colorMode: ColorMode;
     tileUpdatesPerSec?: number;
-    modularRes?: number;
+    tauTileSize?: number;
+    tauTerms?: number;
   } = $props();
 </script>
 
 <!-- ── Lattice shape ────────────────────────────────── -->
 <details open>
   <summary>Lattice shape (&#964;)</summary>
-  <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} {showGrid} bind:modularRes />
+  <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} {showGrid} bind:tauTileSize bind:tauTerms />
 </details>
 
 <!-- ── Domain colouring ─────────────────────────────── -->
@@ -141,16 +143,20 @@
   <summary>Performance</summary>
   <div class="section-body">
     <label>
-      <div class="slider-header"><span>Tile resolution</span><span class="val">{tileSize}px</span></div>
+      <div class="slider-header"><span>℘ tile size</span><span class="val">{tileSize}px</span></div>
       <input type="range" min="64" max="1024" step="32" bind:value={tileSize} />
     </label>
     <label>
-      <div class="slider-header"><span>Sum terms</span><span class="val">{terms}</span></div>
+      <div class="slider-header"><span>℘ series terms</span><span class="val">{terms}</span></div>
       <input type="range" min="1" max="20" step="1" bind:value={terms} />
     </label>
     <label>
-      <div class="slider-header"><span>τ background res</span><span class="val">{modularRes}×</span></div>
-      <input type="range" min="1" max="6" step="1" bind:value={modularRes} />
+      <div class="slider-header"><span>τ tile size</span><span class="val">{tauTileSize}px</span></div>
+      <input type="range" min="100" max="1200" step="50" bind:value={tauTileSize} />
+    </label>
+    <label>
+      <div class="slider-header"><span>τ series terms</span><span class="val">{tauTerms}</span></div>
+      <input type="range" min="5" max="60" step="5" bind:value={tauTerms} />
     </label>
     <div class="telemetry">
       <span class="telemetry-label">Tile renders</span>

@@ -22,7 +22,8 @@
   let showOmega:         boolean = $state(true);
   let sidebarOpen: boolean = $state(true);
   let tileUpdatesPerSec: number = $state(0);
-  let modularRes: number = $state(2);
+  let tauTileSize: number = $state(400);
+  let tauTerms: number = $state(20);
 
   // ── URL state ─────────────────────────────────────────────────────────────
 
@@ -66,8 +67,10 @@
     p.set("pan", `${r4(pan.x)},${r4(pan.y)}`);
     p.set("color", colorMode);
     p.set("view", viewMode);
-    p.set("tile", String(tileSize));
-    p.set("terms", String(terms));
+    p.set("wp_tile", String(tileSize));
+    p.set("wp_terms", String(terms));
+    p.set("tau_tile", String(tauTileSize));
+    p.set("tau_terms", String(tauTerms));
     p.set("halo", String(r4(halo)));
     p.set("grid", showGrid ? "1" : "0");
     p.set("lattice", showLattice ? "1" : "0");
@@ -99,8 +102,10 @@
     colorMode = parseColorMode(p.get("color"));
     halo = parseNum(p.get("halo"), 1.0);
     viewMode = p.get("view") === "torus" ? "torus" : "plane";
-    tileSize = parseIntRange(p.get("tile"), 512, 64, 1024, 32);
-    terms = parseIntRange(p.get("terms"), 5, 1, 20, 1);
+    tileSize = parseIntRange(p.get("wp_tile") ?? p.get("tile"), 512, 64, 1024, 32);
+    terms = parseIntRange(p.get("wp_terms") ?? p.get("terms"), 5, 1, 20, 1);
+    tauTileSize = parseIntRange(p.get("tau_tile"), 400, 100, 1200, 50);
+    tauTerms = parseIntRange(p.get("tau_terms"), 20, 5, 60, 5);
     showGrid = bool("grid", false);
     showLattice = bool("lattice", false);
     showCell = bool("cell", true);
@@ -122,7 +127,7 @@
 
   $effect(() => {
     void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
-          halo, viewMode, tileSize, terms, showGrid, showLattice, showCell,
+          halo, viewMode, tileSize, terms, tauTileSize, tauTerms, showGrid, showLattice, showCell,
           showSpecialPoints, showHalo, showOmega];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
     const qs = encodeState();
@@ -151,6 +156,8 @@
     showHalo = false;
     tileSize = 512;
     terms = 5;
+    tauTileSize = 400;
+    tauTerms = 20;
     viewMode = "plane";
     showGrid = false;
     showLattice = false;
@@ -211,7 +218,8 @@
         bind:showOmega
         bind:colorMode
         {tileUpdatesPerSec}
-        bind:modularRes
+        bind:tauTileSize
+        bind:tauTerms
       />
 
     {#if !sidebarOpen}

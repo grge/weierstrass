@@ -17,6 +17,7 @@ type ModularResources = {
   uXMax: WebGLUniformLocation;
   uYMin: WebGLUniformLocation;
   uYMax: WebGLUniformLocation;
+  uTerms: WebGLUniformLocation;
 };
 
 function makeShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
@@ -58,6 +59,7 @@ export function createModularResources(gl: WebGLRenderingContext): ModularResour
     uXMax: u(gl, program, "u_x_max"),
     uYMin: u(gl, program, "u_y_min"),
     uYMax: u(gl, program, "u_y_max"),
+    uTerms: u(gl, program, "u_terms"),
   };
 }
 
@@ -73,6 +75,7 @@ export function renderModular(
   xMin: number, xMax: number,
   yMin: number, yMax: number,
   width: number, height: number,
+  tauTerms: number,
 ): void {
   const { gl } = r;
   gl.viewport(0, 0, width, height);
@@ -87,5 +90,6 @@ export function renderModular(
   gl.uniform1f(r.uXMax, xMax);
   gl.uniform1f(r.uYMin, yMin);
   gl.uniform1f(r.uYMax, yMax);
+  gl.uniform1i(r.uTerms, Math.max(5, Math.min(60, Math.round(tauTerms))));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }

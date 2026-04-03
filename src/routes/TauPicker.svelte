@@ -13,8 +13,9 @@
     omega2 = $bindable(),
     colorMode = 2,
     showGrid = false,
-    modularRes = 2,
-  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; modularRes?: number } = $props();
+    tauTileSize = 400,
+    tauTerms = 20,
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize?: number; tauTerms?: number } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -71,8 +72,9 @@
   let modularFunc: ModularFunc | "none" = $state("none");
 
   // GL canvas pixel dimensions — CSS size is fixed, this controls render resolution
-  let glW = $derived(W * modularRes);
-  let glH = $derived(H * modularRes);
+  // Scale CSS canvas size (200×150) by tauTileSize/W to get GL pixel dimensions
+  let glW = $derived(Math.round(tauTileSize));
+  let glH = $derived(Math.round(tauTileSize * H / W));
 
   let glCanvas: HTMLCanvasElement;
   let glResources: ReturnType<typeof createModularResources> | null = null;
@@ -109,6 +111,7 @@
       -RANGE, RANGE,
       0, RANGE,
       glW, glH,
+      tauTerms,
     );
   });
 
