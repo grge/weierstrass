@@ -42,6 +42,17 @@ export function tauFromBasis(omega1: Vec2, omega2: Vec2): Vec2 {
   };
 }
 
+/**
+ * Ensure Im(τ) = Im(ω₂/ω₁) > 0 by negating ω₂ when det(ω₁,ω₂) < 0.
+ * The lattice {mω₁ + nω₂} is unchanged because n runs over all integers.
+ */
+export function canonicalizeBasis(omega1: Vec2, omega2: Vec2): { omega1: Vec2; omega2: Vec2 } {
+  if (det(omega1, omega2) < 0) {
+    return { omega1, omega2: { x: -omega2.x, y: -omega2.y } };
+  }
+  return { omega1, omega2 };
+}
+
 export function basisFromTau(tau: Vec2, scale = 1, angle = 0): { omega1: Vec2; omega2: Vec2 } {
   const omega1 = {
     x: scale * Math.cos(angle),

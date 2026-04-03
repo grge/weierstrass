@@ -2,7 +2,7 @@
   import { onMount, untrack } from "svelte";
   import { createResources, destroyResources, render } from "$lib/gl";
   import { worldToScreen, screenToWorld, clamp, findWeierstrassZeros } from "$lib/math";
-  import { toLatticeCoords } from "$lib/lattice";
+  import { toLatticeCoords, canonicalizeBasis } from "$lib/lattice";
   import type { Vec2, DragState, GLResources, RenderMode, ViewMode } from "$lib/types";
 
   let {
@@ -371,8 +371,13 @@
       return;
     }
     const next = pointerToWorld(e);
-    if (drag.kind === "omega1") omega1 = next;
-    else omega2 = next;
+    if (drag.kind === "omega1") {
+      const canon = canonicalizeBasis(next, omega2);
+      omega1 = canon.omega1; omega2 = canon.omega2;
+    } else {
+      const canon = canonicalizeBasis(omega1, next);
+      omega1 = canon.omega1; omega2 = canon.omega2;
+    }
     hoverAnchor = drag.kind;
   }
 

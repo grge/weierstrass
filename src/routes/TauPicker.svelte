@@ -7,13 +7,10 @@
     omega2 = $bindable(),
   }: { omega1: Vec2; omega2: Vec2 } = $props();
 
-  const MIN_TAU_ABS_IM = 0.05;
+  const MIN_TAU_IM = 0.05;
 
   function normalizeTau(tau: Vec2): Vec2 {
-    const y = tau.y;
-    if (Math.abs(y) >= MIN_TAU_ABS_IM) return tau;
-    const sign = y < 0 ? -1 : 1;
-    return { x: tau.x, y: sign * MIN_TAU_ABS_IM };
+    return { x: tau.x, y: Math.max(tau.y, MIN_TAU_IM) };
   }
 
   // Derived: scale = |omega1|
@@ -38,12 +35,6 @@
     const f = newScale / s;
     omega1 = { x: omega1.x * f, y: omega1.y * f };
     omega2 = { x: omega2.x * f, y: omega2.y * f };
-  }
-
-  // Flip Im(tau) → conjugate tau, update omega2
-  function flipIm() {
-    const tau = tauFromBasis(omega1, omega2);
-    applyTau({ x: tau.x, y: -tau.y });
   }
 
   // Reset scale to 1.0, preserving tau and rotation
@@ -190,7 +181,6 @@
     <button onclick={setHex}>Hexagonal</button>
   </div>
   <div class="tau-buttons">
-    <button onclick={flipIm}>Flip Im(&#964;)</button>
     <button onclick={resetScale}>Scale = 1</button>
   </div>
 

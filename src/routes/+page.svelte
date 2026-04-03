@@ -103,7 +103,7 @@
     const tau = parsePair(p.get("tau"), { x: 0.25, y: 1.2 });
     const scale = parseNum(p.get("scale"), 1);
     const angle = parseNum(p.get("angle"), 0);
-    const tauY = Math.abs(tau.y) < 0.05 ? (tau.y < 0 ? -0.05 : 0.05) : tau.y;
+    const tauY = Math.max(Math.abs(tau.y) < 0.05 ? 0.05 : tau.y, 0.05);
     const basis = basisFromTau({ x: tau.x, y: tauY }, scale, angle);
     omega1 = basis.omega1;
     omega2 = basis.omega2;
