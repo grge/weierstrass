@@ -2,6 +2,15 @@ import type { GLResources, RenderParams } from "./types";
 import quadVertSrc from "./shaders/quad.vert?raw";
 import tileFrag from "./shaders/tile.frag?raw";
 import screenFrag from "./shaders/screen.frag?raw";
+import complexGlsl from "./shaders/complex.glsl?raw";
+import colourGlsl from "./shaders/colour.glsl?raw";
+
+/** Assemble a shader source by replacing snippet markers with shared GLSL. */
+export function assembleShader(src: string): string {
+  return src
+    .replace('// ── [complex.glsl]', complexGlsl)
+    .replace('// ── [colour.glsl]', colourGlsl);
+}
 
 function makeShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
   const shader = gl.createShader(type)!;
@@ -37,7 +46,7 @@ function bindQuad(gl: WebGLRenderingContext, buffer: WebGLBuffer, attrib: number
 }
 
 export function createResources(gl: WebGLRenderingContext, tileSize: number): GLResources {
-  const textureProgram = makeProgram(gl, quadVertSrc, tileFrag);
+  const textureProgram = makeProgram(gl, quadVertSrc, assembleShader(tileFrag));
   const screenProgram = makeProgram(gl, quadVertSrc, screenFrag);
 
   const quadBuffer = gl.createBuffer()!;
