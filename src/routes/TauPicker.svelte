@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import type { Vec2 } from "$lib/types";
   import type { RenderMode } from "$lib/types";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
@@ -48,33 +48,35 @@
   function setHex()    { applyTau({ x: 0.5, y: Math.sqrt(3) / 2 }); }
   function setSquare() { applyTau({ x: 0, y: 1 }); }
 
-  // ── Viewport ──────────────────────────────────────────────────────
-  const W = 200;
-  const H = 150;
+  // ── Viewport geometry ─────────────────────────────────────────────
   // Visible τ region: Re ∈ [-RANGE, RANGE], Im ∈ [0, RANGE]
   const RANGE = 2.5;
 
-  function worldToCanvas(wx: number, wy: number): [number, number] {
+  // CSS pixel dimensions of the canvas container — updated by ResizeObserver
+  let cssW = $state(200);
+  let cssH = $state(150);
+
+  // Map world coords → device pixels (canvas buffer space)
+  function worldToCanvas(wx: number, wy: number, w: number, h: number): [number, number] {
     return [
-      (wx / RANGE + 1) * 0.5 * W,
-      (1 - wy / RANGE) * H,
+      (wx / RANGE + 1) * 0.5 * w,
+      (1 - wy / RANGE) * h,
     ];
   }
 
+  // Map CSS pointer coords → world coords
   function canvasToWorld(cx: number, cy: number): Vec2 {
     return {
-      x: (cx / W * 2 - 1) * RANGE,
-      y: (1 - cy / H) * RANGE,
+      x: (cx / cssW * 2 - 1) * RANGE,
+      y: (1 - cy / cssH) * RANGE,
     };
   }
 
   // ── Modular background ────────────────────────────────────────────
   let modularFunc: ModularFunc | "none" = $state("none");
 
-  // GL canvas pixel dimensions — CSS size is fixed, this controls render resolution
-  // Scale CSS canvas size (200×150) by tauTileSize/W to get GL pixel dimensions
   let glW = $derived(Math.round(tauTileSize));
-  let glH = $derived(Math.round(tauTileSize * H / W));
+  let glH = $derived(Math.round(tauTileSize * 3 / 4));  // 4:3 aspect
 
   let glCanvas: HTMLCanvasElement;
   let glResources: ReturnType<typeof createModularResources> | null = null;
@@ -99,7 +101,6 @@
 
   $effect(() => {
     if (modularFunc === "none" || !glResources || !glCanvas) return;
-    // Set canvas pixel dimensions before rendering to guarantee viewport consistency
     if (glCanvas.width !== glW || glCanvas.height !== glH) {
       glCanvas.width = glW;
       glCanvas.height = glH;
@@ -116,9 +117,24 @@
   });
 
   // ── Interaction ───────────────────────────────────────────────────
+  let container: HTMLDivElement;
   let overlay: HTMLCanvasElement;
-  let dragging = false;
-  let hovering = false;
+  let dragging = $state(false);
+  let hovering = $state(false);
+
+  onMount(() => {
+    // Track actual rendered CSS size so overlay draws at correct resolution
+    const ro = new ResizeObserver(entries => {
+      const e = entries[0];
+      if (!e) return;
+      untrack(() => {
+        cssW = e.contentRect.width;
+        cssH = e.contentRect.height;
+      });
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  });
 
   function onPointerDown(e: PointerEvent) {
     dragging = true;
@@ -126,84 +142,109 @@
     moveTo(e);
   }
   function onPointerMove(e: PointerEvent) {
-    if (!dragging) return;
-    moveTo(e);
+    if (dragging) {
+      moveTo(e);
+    } else {
+      hovering = isOverHandle(e);
+    }
   }
   function onPointerUp(e: PointerEvent) {
     dragging = false;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   }
-  function onPointerEnter() { hovering = true; }
+  function onPointerEnter() { hovering = false; }
   function onPointerLeave() { hovering = false; }
+
+  function isOverHandle(e: PointerEvent): boolean {
+    const rect = overlay.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const dpr = Math.min(devicePixelRatio ?? 1, 2);
+    const w = Math.round(cssW * dpr);
+    const h = Math.round(cssH * dpr);
+    const [tx, ty] = worldToCanvas(tau.x, tau.y, w, h);
+    const mx = cx * dpr;
+    const my = cy * dpr;
+    return Math.hypot(mx - tx, my - ty) <= 12 * dpr;
+  }
 
   function moveTo(e: PointerEvent) {
     const rect = overlay.getBoundingClientRect();
-    const cx = (e.clientX - rect.left) * (W / rect.width);
-    const cy = (e.clientY - rect.top)  * (H / rect.height);
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
     applyTau(canvasToWorld(cx, cy));
   }
 
   // ── Overlay draw (2D) ─────────────────────────────────────────────
   $effect(() => {
-    void [omega1, omega2, hovering, dragging, showGrid, modularFunc]; // reactive dependencies
+    void [omega1, omega2, hovering, dragging, showGrid, modularFunc, cssW, cssH];
     if (!overlay) return;
+
+    const dpr = Math.min(devicePixelRatio ?? 1, 2);
+    const w = Math.max(1, Math.round(cssW * dpr));
+    const h = Math.max(1, Math.round(cssH * dpr));
+    if (overlay.width !== w || overlay.height !== h) {
+      overlay.width = w;
+      overlay.height = h;
+    }
+
     const hasBackground = modularFunc !== "none";
     const ctx = overlay.getContext("2d", { alpha: true })!;
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, w, h);
 
     if (!hasBackground) {
       ctx.fillStyle = "#1a1210";
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, w, h);
     }
 
-    // ── a) complex grid — white, matching main viewport style
+    // ── a) complex grid
     if (showGrid) {
       ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = dpr;
       for (let v = 0; v <= 2; v++) {
-        const [,y0] = worldToCanvas(-RANGE, v);
-        ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
+        const [,y0] = worldToCanvas(-RANGE, v, w, h);
+        ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(w, y0); ctx.stroke();
       }
       for (let u = -2; u <= 2; u++) {
-        const [x0] = worldToCanvas(u, 0);
-        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, H); ctx.stroke();
+        const [x0] = worldToCanvas(u, 0, w, h);
+        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, h); ctx.stroke();
       }
     }
 
-    // ── b) axes — white, stronger than grid
+    // ── b) axes
     ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-    ctx.lineWidth = 1;
-    const [ax] = worldToCanvas(0, 0);
-    ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(W, H); ctx.stroke();
+    ctx.lineWidth = dpr;
+    const [ax] = worldToCanvas(0, 0, w, h);
+    ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(w, h); ctx.stroke();
 
-    // ── c) vector line from origin to τ — white, matching ω vectors in viewport
-    const [ox, oy] = worldToCanvas(0, 0);
-    const [tx, ty] = worldToCanvas(tau.x, tau.y);
+    // ── c) vector line origin → τ
+    const [ox, oy] = worldToCanvas(0, 0, w, h);
+    const [tx, ty] = worldToCanvas(tau.x, tau.y, w, h);
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(tx, ty);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 * dpr;
     ctx.stroke();
 
     // origin dot
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ox, oy, 2.5 * dpr, 0, Math.PI * 2); ctx.fill();
 
-    // ── d) τ handle — styled to match ω₁/ω₂ handles in viewport
+    // ── d) τ handle
     const active = hovering || dragging;
-    const r = active ? 12 : 10.5;
+    const r = (active ? 12 : 10.5) * dpr;
     if (active) {
       ctx.fillStyle = "rgba(255, 170, 70, 0.25)";
       ctx.beginPath(); ctx.arc(tx, ty, r * 1.45, 0, Math.PI * 2); ctx.fill();
     }
     ctx.fillStyle = active ? "rgba(255, 165, 60, 1.0)" : "rgba(255, 140, 40, 1.0)";
     ctx.strokeStyle = active ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.8)";
-    ctx.lineWidth = active ? 1.9 : 1.5;
+    ctx.lineWidth = (active ? 1.9 : 1.5) * dpr;
     ctx.beginPath(); ctx.arc(tx, ty, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
     // τ label inside handle
     ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.font = "600 11px system-ui, sans-serif";
+    ctx.font = `600 ${Math.round(11 * dpr)}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("τ", tx, ty);
@@ -224,20 +265,20 @@
 </script>
 
 <div class="tau-section">
-  <div class="canvas-stack">
+  <div class="canvas-stack" bind:this={container}>
     <!-- GL layer: modular background -->
     <canvas
       bind:this={glCanvas}
-      width={W}
-      height={H}
+      width={400}
+      height={300}
       class="tau-canvas gl-layer"
       class:hidden={modularFunc === "none"}
     ></canvas>
-    <!-- 2D layer: grid, axes, τ dot, labels — also captures pointer events -->
+    <!-- 2D layer: grid, axes, τ handle — also captures pointer events -->
     <canvas
       bind:this={overlay}
-      width={W}
-      height={H}
+      width={200}
+      height={150}
       class="tau-canvas overlay-layer"
       onpointerdown={onPointerDown}
       onpointermove={onPointerMove}
