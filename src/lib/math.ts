@@ -107,7 +107,11 @@ export function findWeierstrassZeros(
   if (!z1) return warmStart;
 
   const z1f = toFundamental(z1, omega1, omega2);
-  const z2 = toFundamental({ x: -z1.x, y: -z1.y }, omega1, omega2);
+  // Use -z1 (symmetry of ℘) as a Newton seed rather than the final answer,
+  // so floating-point asymmetry from the fold doesn't propagate.
+  const z2seed = { x: -z1.x, y: -z1.y };
+  const z2polished = runNewton(z2seed) ?? z2seed;
+  const z2 = toFundamental(z2polished, omega1, omega2);
   return [z1f, z2];
 }
 

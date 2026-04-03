@@ -11,6 +11,11 @@ All notable changes to this project will be documented here.
 ## 2026-04-03
 
 ### Changed
+- **Zero finder:** Newton-polish the inferred second zero (z₂ = −z₁ mod Λ) rather than using the raw fold result. Reduces floating-point drift for skewed or highly-scaled lattices where `-z1` maps poorly through `toFundamental` alone.
+
+## 2026-04-03
+
+### Changed
 - **GL robustness:** `createResources` now calls `gl.checkFramebufferStatus` after attaching the tile texture to the FBO and throws a descriptive error (with hex status code) if the framebuffer is incomplete. Previously a misconfigured or unsupported FBO would silently produce a black screen.
 
 ---
