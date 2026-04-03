@@ -96,7 +96,12 @@
   });
 
   $effect(() => {
-    if (modularFunc === "none" || !glResources) return;
+    if (modularFunc === "none" || !glResources || !glCanvas) return;
+    // Set canvas pixel dimensions before rendering to guarantee viewport consistency
+    if (glCanvas.width !== glW || glCanvas.height !== glH) {
+      glCanvas.width = glW;
+      glCanvas.height = glH;
+    }
     renderModular(
       glResources,
       modularFunc,
