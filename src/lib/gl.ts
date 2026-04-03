@@ -55,6 +55,10 @@ export function createResources(gl: WebGLRenderingContext, tileSize: number): GL
   const textureFramebuffer = gl.createFramebuffer()!;
   gl.bindFramebuffer(gl.FRAMEBUFFER, textureFramebuffer);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tileTexture, 0);
+  const fboStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (fboStatus !== gl.FRAMEBUFFER_COMPLETE) {
+    throw new Error(`Framebuffer incomplete (status 0x${fboStatus.toString(16)})`);
+  }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   return {
