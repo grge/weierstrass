@@ -3,8 +3,6 @@ varying vec2 v_uv;
 
 uniform vec2  u_tau;
 uniform int   u_mode;
-uniform float u_brightness;
-uniform float u_contrast;
 uniform float u_halo;
 uniform int   u_terms;
 const float PI = 3.141592653589793;
@@ -89,7 +87,7 @@ vec3 paletteEmber(vec2 w) {
   // t=0.5 → dark (0.30, 0.02, 0.00)
   // t=1.0 → gold again (cyclic)
 
-  float v = 1.0 - 1.0 / (1.0 + u_brightness * pow(mag, 0.28));
+  float v = 1.0 - 1.0 / (1.0 + 2.2 * pow(mag, 0.28));
   return col * (0.08 + 0.92 * v);
 }
 
@@ -154,7 +152,8 @@ void main() {
   else if (u_mode == 2) color = paletteDusk(w);
   else                  color = paletteContours(w);
 
-  color = pow(clamp(color, 0.0, 1.0), vec3(max(0.3, 1.2 - u_contrast * 0.4)));
+  // Fixed gamma lift (contrast=1.0 → exponent 0.8)
+  color = pow(clamp(color, 0.0, 1.0), vec3(0.8));
 
   if (u_halo > 0.0) {
     float lw = log(max(cAbs(w), 1e-9));  // log|w|: +∞ near poles, -∞ near zeros

@@ -12,8 +12,6 @@
     pan    = $bindable({ x: 0.8, y: 0.7 }),
     tau,
     mode,
-    brightness,
-    contrast,
     halo,
     tileSize,
     terms = 5,
@@ -26,8 +24,7 @@
     viewMode = "plane",
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
-    tau: Vec2; mode: RenderMode; brightness: number; contrast: number;
-    halo: number; tileSize: number; terms?: number;
+    tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
   } = $props();
@@ -90,7 +87,7 @@
     if (overlayCanvas.width !== w || overlayCanvas.height !== h) { overlayCanvas.width = w; overlayCanvas.height = h; }
 
     render(resources, {
-      omega1, omega2, tau, zoom, pan, mode, brightness, contrast,
+      omega1, omega2, tau, zoom, pan, mode,
       halo: showHalo ? halo : 0,
       viewMode, terms,
       width: w, height: h,

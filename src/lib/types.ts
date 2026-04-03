@@ -16,8 +16,6 @@ export type GLResources = {
     texture: {
       tau: WebGLUniformLocation;
       mode: WebGLUniformLocation;
-      brightness: WebGLUniformLocation;
-      contrast: WebGLUniformLocation;
       halo: WebGLUniformLocation;
       terms: WebGLUniformLocation;
     };
@@ -49,8 +47,6 @@ export type RenderParams = {
   zoom: number;
   pan: Vec2;
   mode: RenderMode;
-  brightness: number;
-  contrast: number;
   halo: number;
   viewMode: ViewMode;
   terms: number;

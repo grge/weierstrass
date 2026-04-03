@@ -10,8 +10,6 @@
   let zoom: number = $state(0.8);
   let pan: Vec2 = $state({ x: 0.8, y: 0.7 });
   let colorMode: ColorMode = $state("dusk");
-  let brightness: number = $state(2.2);
-  let contrast: number = $state(1.0);
   let halo:          number = $state(1);
   let showHalo:      boolean = $state(false);
   let tileSize: number = $state(512);
@@ -68,8 +66,6 @@
     p.set("view", viewMode);
     p.set("tile", String(tileSize));
     p.set("terms", String(terms));
-    p.set("brightness", String(r4(brightness)));
-    p.set("contrast", String(r4(contrast)));
     p.set("halo", String(r4(halo)));
     p.set("grid", showGrid ? "1" : "0");
     p.set("lattice", showLattice ? "1" : "0");
@@ -99,8 +95,6 @@
     zoom = parseNum(p.get("zoom"), 0.8);
     pan = parsePair(p.get("pan"), { x: 0.8, y: 0.7 });
     colorMode = parseColorMode(p.get("color"));
-    brightness = parseNum(p.get("brightness"), 2.2);
-    contrast = parseNum(p.get("contrast"), 1.0);
     halo = parseNum(p.get("halo"), 1.0);
     viewMode = p.get("view") === "torus" ? "torus" : "plane";
     tileSize = parseIntRange(p.get("tile"), 512, 64, 1024, 32);
@@ -125,7 +119,7 @@
   });
 
   $effect(() => {
-    void [omega1, omega2, zoom, pan.x, pan.y, colorMode, brightness, contrast,
+    void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
           halo, viewMode, tileSize, terms, showGrid, showLattice, showCell,
           showSpecialPoints, showHalo, showOmega];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
@@ -151,8 +145,6 @@
     zoom = 0.8;
     pan = { x: 0.8, y: 0.7 };
     colorMode = "dusk";
-    brightness = 2.2;
-    contrast = 1.0;
     halo = 1;
     showHalo = false;
     tileSize = 512;
@@ -179,8 +171,6 @@
       bind:pan
       {tau}
       mode={modeIndex}
-      {brightness}
-      {contrast}
       {halo}
       {tileSize}
       {terms}

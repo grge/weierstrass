@@ -77,8 +77,6 @@ export function createResources(gl: WebGLRenderingContext, tileSize: number): GL
       texture: {
         tau: uniform(gl, textureProgram, "u_tau"),
         mode: uniform(gl, textureProgram, "u_mode"),
-        brightness: uniform(gl, textureProgram, "u_brightness"),
-        contrast: uniform(gl, textureProgram, "u_contrast"),
         halo: uniform(gl, textureProgram, "u_halo"),
         terms: uniform(gl, textureProgram, "u_terms"),
       },
@@ -115,8 +113,6 @@ export function render(r: GLResources, p: RenderParams): void {
   bindQuad(gl, r.quadBuffer, r.attribs.textureApos);
   gl.uniform2f(r.uniforms.texture.tau, p.tau.x, p.tau.y);
   gl.uniform1i(r.uniforms.texture.mode, p.mode);
-  gl.uniform1f(r.uniforms.texture.brightness, p.brightness);
-  gl.uniform1f(r.uniforms.texture.contrast, p.contrast);
   gl.uniform1f(r.uniforms.texture.halo, p.halo);
   gl.uniform1i(r.uniforms.texture.terms, Math.max(1, Math.min(20, Math.round(p.terms))));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
