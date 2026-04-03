@@ -118,6 +118,7 @@
   // ── Interaction ───────────────────────────────────────────────────
   let overlay: HTMLCanvasElement;
   let dragging = false;
+  let hovering = false;
 
   function onPointerDown(e: PointerEvent) {
     dragging = true;
@@ -132,6 +133,8 @@
     dragging = false;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   }
+  function onPointerEnter() { hovering = true; }
+  function onPointerLeave() { hovering = false; }
 
   function moveTo(e: PointerEvent) {
     const rect = overlay.getBoundingClientRect();
@@ -142,22 +145,20 @@
 
   // ── Overlay draw (2D) ─────────────────────────────────────────────
   $effect(() => {
-    void [omega1, omega2]; // reactive dependency
+    void [omega1, omega2, hovering, dragging, showGrid, modularFunc]; // reactive dependencies
     if (!overlay) return;
     const hasBackground = modularFunc !== "none";
     const ctx = overlay.getContext("2d", { alpha: true })!;
     ctx.clearRect(0, 0, W, H);
 
     if (!hasBackground) {
-      // Solid background only when no GL layer
       ctx.fillStyle = "#1a1210";
       ctx.fillRect(0, 0, W, H);
     }
 
-    // Grid lines — only when complex grid overlay is enabled
+    // ── a) complex grid — white, matching main viewport style
     if (showGrid) {
-      const gridAlpha = hasBackground ? 0.2 : 0.12;
-      ctx.strokeStyle = `rgba(255,180,100,${gridAlpha})`;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
       ctx.lineWidth = 0.5;
       for (let v = 0; v <= 2; v++) {
         const [,y0] = worldToCanvas(-RANGE, v);
@@ -169,30 +170,43 @@
       }
     }
 
-    // Axes always visible
-    const axisAlpha = hasBackground ? 0.25 : 0.35;
-    ctx.strokeStyle = `rgba(255,180,100,${axisAlpha})`;
+    // ── b) axes — white, stronger than grid
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
     ctx.lineWidth = 1;
     const [ax] = worldToCanvas(0, 0);
     ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(W, H); ctx.stroke();
 
-    // Line from origin to tau
+    // ── c) vector line from origin to τ — white, matching ω vectors in viewport
     const [ox, oy] = worldToCanvas(0, 0);
     const [tx, ty] = worldToCanvas(tau.x, tau.y);
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(tx, ty);
-    ctx.strokeStyle = "rgba(255,150,60,0.5)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Tau dot
-    ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255,150,60,1)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // origin dot
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
 
+    // ── d) τ handle — styled to match ω₁/ω₂ handles in viewport
+    const active = hovering || dragging;
+    const r = active ? 12 : 10.5;
+    if (active) {
+      ctx.fillStyle = "rgba(255, 170, 70, 0.25)";
+      ctx.beginPath(); ctx.arc(tx, ty, r * 1.45, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = active ? "rgba(255, 165, 60, 1.0)" : "rgba(255, 140, 40, 1.0)";
+    ctx.strokeStyle = active ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = active ? 1.9 : 1.5;
+    ctx.beginPath(); ctx.arc(tx, ty, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // τ label inside handle
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.font = "600 11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("τ", tx, ty);
   });
 
   // ── Scale ─────────────────────────────────────────────────────────
@@ -229,6 +243,8 @@
       onpointermove={onPointerMove}
       onpointerup={onPointerUp}
       onpointercancel={onPointerUp}
+      onpointerenter={onPointerEnter}
+      onpointerleave={onPointerLeave}
     ></canvas>
   </div>
   <div class="tau-label">{tauLabel}</div>
