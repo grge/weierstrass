@@ -2,7 +2,7 @@
   import { onMount, untrack } from "svelte";
   import { createResources, destroyResources, render } from "$lib/gl";
   import { worldToScreen, screenToWorld, clamp, findWeierstrassZeros } from "$lib/math";
-  import { toLatticeCoords, canonicalizeBasis } from "$lib/lattice";
+  import { toLatticeCoords } from "$lib/lattice";
   import type { Vec2, DragState, GLResources, RenderMode, ViewMode } from "$lib/types";
 
   let {
@@ -321,6 +321,30 @@
 
   // ── interaction ───────────────────────────────────────────────────────────
 
+  /**
+   * Project `proposed` onto the half-space det(ω₁,ω₂) ≥ MIN_DET,
+   * keeping the point as close as possible to where the pointer is.
+   * proposedIsOmega1=true  → proposed is ω₁, fixed is ω₂
+   * proposedIsOmega1=false → proposed is ω₂, fixed is ω₁
+   */
+  function clampToPositiveDet(proposed: Vec2, fixed: Vec2, proposedIsOmega1: boolean): Vec2 {
+    const MIN_DET = 1e-4;
+    // det(ω₁,ω₂) = ω₁.x·ω₂.y − ω₁.y·ω₂.x
+    const d = proposedIsOmega1
+      ? proposed.x * fixed.y  - proposed.y * fixed.x   // det(proposed, ω₂)
+      : fixed.x   * proposed.y - fixed.y  * proposed.x; // det(ω₁, proposed)
+    if (d >= MIN_DET) return proposed;
+    // Gradient of det w.r.t. the proposed vector:
+    //   ∂det/∂ω₁ = (ω₂.y, −ω₂.x)    ∂det/∂ω₂ = (−ω₁.y, ω₁.x)
+    const [gx, gy] = proposedIsOmega1
+      ? [ fixed.y, -fixed.x]
+      : [-fixed.y,  fixed.x];
+    const mag2 = gx * gx + gy * gy;
+    if (mag2 < 1e-12) return proposed;
+    const t = (MIN_DET - d) / mag2;
+    return { x: proposed.x + t * gx, y: proposed.y + t * gy };
+  }
+
   function pointerToWorld(e: PointerEvent): Vec2 {
     const dpr = Math.min(devicePixelRatio ?? 1, 2);
     const rect = overlayCanvas.getBoundingClientRect();
@@ -371,13 +395,8 @@
       return;
     }
     const next = pointerToWorld(e);
-    if (drag.kind === "omega1") {
-      const canon = canonicalizeBasis(next, omega2);
-      omega1 = canon.omega1; omega2 = canon.omega2;
-    } else {
-      const canon = canonicalizeBasis(omega1, next);
-      omega1 = canon.omega1; omega2 = canon.omega2;
-    }
+    if (drag.kind === "omega1") omega1 = clampToPositiveDet(next, omega2, true);
+    else omega2 = clampToPositiveDet(next, omega1, false);
     hoverAnchor = drag.kind;
   }
 

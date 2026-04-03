@@ -54,20 +54,21 @@
 
   // ── Canvas picker ──────────────────────────────────────────────────
   let canvas: HTMLCanvasElement;
-  const SIZE = 200;
+  const W = 200;
+  const H = 100;
   const RANGE = 2.5; // world units shown on each axis half
 
   function worldToCanvas(wx: number, wy: number): [number, number] {
     return [
-      (wx / RANGE + 1) * 0.5 * SIZE,
-      (1 - wy / RANGE) * 0.5 * SIZE,   // y flipped
+      (wx / RANGE + 1) * 0.5 * W,
+      (1 - wy / RANGE) * H,            // y: [0, RANGE] → [H, 0]
     ];
   }
 
   function canvasToWorld(cx: number, cy: number): Vec2 {
     return {
-      x: (cx / SIZE * 2 - 1) * RANGE,
-      y: (1 - cy / SIZE * 2) * RANGE,
+      x: (cx / W * 2 - 1) * RANGE,
+      y: (1 - cy / H) * RANGE,
     };
   }
 
@@ -89,8 +90,8 @@
 
   function moveTo(e: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
-    const cx = (e.clientX - rect.left) * (SIZE / rect.width);
-    const cy = (e.clientY - rect.top)  * (SIZE / rect.height);
+    const cx = (e.clientX - rect.left) * (W / rect.width);
+    const cy = (e.clientY - rect.top)  * (H / rect.height);
     applyTau(canvasToWorld(cx, cy));
   }
 
@@ -99,37 +100,32 @@
     const tau = tauFromBasis(omega1, omega2);
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.clearRect(0, 0, W, H);
 
     // Background
     ctx.fillStyle = '#1a1210';
-    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.fillRect(0, 0, W, H);
 
-    // Grid lines
+    // Horizontal grid lines (Im axis, positive values only)
     ctx.strokeStyle = 'rgba(255,180,100,0.12)';
     ctx.lineWidth = 0.5;
-    for (let v = -2; v <= 2; v++) {
-      const [x0] = worldToCanvas(v, -RANGE);
-      const [x1] = worldToCanvas(v,  RANGE);
-      ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x1, SIZE); ctx.stroke();
+    for (let v = 0; v <= 2; v++) {
       const [,y0] = worldToCanvas(-RANGE, v);
-      const [,y1] = worldToCanvas( RANGE, v);
-      ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(SIZE, y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
+    }
+    // Vertical grid lines
+    for (let u = -2; u <= 2; u++) {
+      const [x0] = worldToCanvas(u, 0);
+      ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, H); ctx.stroke();
     }
 
     // Axes
     ctx.strokeStyle = 'rgba(255,180,100,0.35)';
     ctx.lineWidth = 1;
     const [ax] = worldToCanvas(0, 0);
-    const [,ay] = worldToCanvas(0, 0);
-    ctx.beginPath(); ctx.moveTo(ax, 0);    ctx.lineTo(ax, SIZE); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, ay);    ctx.lineTo(SIZE, ay); ctx.stroke();
-
-    // Reference point at (1, 0) — where omega1 direction points
-    const [rx, ry] = worldToCanvas(1, 0);
-    ctx.beginPath(); ctx.arc(rx, ry, 3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,180,100,0.5)';
-    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
+    // Real axis is the bottom edge — just highlight it
+    ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(W, H); ctx.stroke();
 
     // Line from origin to tau
     const [ox, oy] = worldToCanvas(0, 0);
@@ -151,7 +147,7 @@
     const tauLabel = `${tau.x.toFixed(2)} + ${tau.y.toFixed(2)}i`;
     ctx.fillStyle = 'rgba(255,220,180,0.7)';
     ctx.font = '10px monospace';
-    ctx.fillText(`τ = ${tauLabel}`, 4, SIZE - 4);
+    ctx.fillText(`τ = ${tauLabel}`, 4, H - 4);
   });
 
   // Scale state — reactive derived
@@ -167,8 +163,8 @@
 <div class="tau-section">
   <canvas
     bind:this={canvas}
-    width={SIZE}
-    height={SIZE}
+    width={W}
+    height={H}
     class="tau-canvas"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
@@ -208,7 +204,7 @@
 
   .tau-canvas {
     width: 100%;
-    aspect-ratio: 1;
+    aspect-ratio: 2 / 1;
     cursor: crosshair;
     display: block;
     border: 1px solid rgba(255,150,60,0.2);

@@ -11,9 +11,8 @@ All notable changes to this project will be documented here.
 ## 2026-04-03
 
 ### Changed
-- **Canonical τ policy:** Im(τ) is now enforced positive throughout. `normalizeTau` in TauPicker clamps to Im(τ) ≥ 0.05 (no longer accepts negative imaginary part). `applyState` in the URL decoder likewise enforces Im(τ) > 0 so malformed URLs can't sneak in a conjugate lattice. A new `canonicalizeBasis` helper in `lattice.ts` negates ω₂ when det(ω₁,ω₂) < 0, and is applied after every ω-handle drag in Viewport so dragging across the real axis flips the sign of ω₂ rather than producing Im(τ) < 0.
-- **TauPicker UI:** Removed the "Flip Im(τ)" button — no longer meaningful under the canonical upper-half-plane policy.
-- **Zero finder:** Newton-polish the inferred second zero (z₂ = −z₁ mod Λ) rather than using the raw fold result. Reduces floating-point drift for skewed or highly-scaled lattices where `-z1` maps poorly through `toFundamental` alone.
+- **Canonical τ policy (drag fix):** Replaced `canonicalizeBasis` snap in Viewport with a smooth `clampToPositiveDet` projection. When dragging an ω-handle would cause det(ω₁,ω₂) ≤ 0 (i.e. Im(τ) ≤ 0), the handle is now projected onto the det=ε boundary rather than jumping to the conjugate position, so the handle stays under the pointer.
+- **TauPicker canvas:** Restricted to the upper half-plane only. Canvas is now 2:1 (200×100px), y-axis runs Im(τ) ∈ [0, 2.5]. Dragging is clamped to Im(τ) ≥ 0.05 by normalizeTau. Removed the decorative (1,0) reference dot.
 
 ## 2026-04-03
 
