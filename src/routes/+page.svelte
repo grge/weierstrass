@@ -201,8 +201,40 @@
 
     <aside class="sidebar" class:open={sidebarOpen}>
       <div class="sidebar-header">
-        <button class="toggle" onclick={() => (sidebarOpen = false)} title="Hide controls">&raquo;</button>
-        <button class="reset-btn" onclick={reset}>reset</button>
+        <span class="sidebar-title">Weierstrass ℘</span>
+        <div class="sidebar-actions">
+          <a
+            class="header-link"
+            href="https://github.com/grge/weierstrass"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="GitHub"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+                0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+                .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+                -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27
+                c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12
+                .51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+                0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </a>
+          <button class="header-btn" onclick={reset} title="Reset to defaults">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+              <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+              <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+            </svg>
+          </button>
+          <button class="header-btn close-btn" onclick={() => (sidebarOpen = false)} title="Hide controls">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707
+                8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293
+                8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <Controls
         bind:omega1
@@ -307,38 +339,64 @@
   .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
-    border-bottom: 1px solid rgba(255, 150, 60, 0.12);
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid rgba(255, 150, 60, 0.18);
     background: #120d0b;
+    flex-shrink: 0;
   }
 
-  .reset-btn {
-    background: none;
-    border: 1px solid rgba(255, 150, 60, 0.3);
-    color: rgba(255, 200, 150, 0.7);
-    border-radius: 0.25rem;
-    padding: 0.15rem 0.5rem;
-    font-size: 0.72rem;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .reset-btn:hover { background: rgba(255, 150, 60, 0.1); color: rgba(255, 200, 150, 1); }
-
-  .toggle {
-    background: none;
-    border: 1px solid rgba(255, 150, 60, 0.3);
-    color: rgba(255, 200, 150, 0.9);
-    border-radius: 0.4rem;
-    width: 1.8rem;
-    height: 1.8rem;
-    cursor: pointer;
+  .sidebar-title {
     font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 220, 180, 0.9);
+    letter-spacing: 0.03em;
+    user-select: none;
+  }
+
+  .sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .header-link {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    color: rgba(255, 200, 150, 0.45);
+    text-decoration: none;
+    border-radius: 0.3rem;
+    transition: color 0.15s, background 0.15s;
   }
-  .toggle:hover { background: rgba(255, 150, 60, 0.1); }
+  .header-link:hover {
+    color: rgba(255, 220, 180, 0.9);
+    background: rgba(255, 150, 60, 0.1);
+  }
+
+  .header-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    background: none;
+    border: none;
+    color: rgba(255, 200, 150, 0.45);
+    border-radius: 0.3rem;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    padding: 0;
+  }
+  .header-btn:hover {
+    color: rgba(255, 220, 180, 0.9);
+    background: rgba(255, 150, 60, 0.1);
+  }
+  .close-btn:hover {
+    color: rgba(255, 120, 80, 0.9);
+  }
 
   .open-btn {
     position: absolute;

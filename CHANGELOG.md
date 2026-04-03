@@ -10,22 +10,35 @@ All notable changes to this project will be documented here.
 
 ## 2026-04-03
 
+### Added
+- **Modular $\tau$ background:** TauPicker now has an optional WebGL background showing domain colouring of $j(\tau)$, $\Delta(\tau)$, $E_4(\tau)$, or $E_6(\tau)$ on the upper half-plane. Selector in the Lattice shape section. Computed from truncated q-series ($E_4$, $E_6$ → $\Delta$ → j) in GLSL, rendered via a new single-pass renderer (`modular_gl.ts` + `tau_modular.frag`). Colour palette tracks the main viewport mode.
+- **Tile render counter:** `tileUpdatesPerSec` displayed in the Performance panel — counts how often the GL tile render effect fires per second. Useful for spotting unnecessary re-renders.
+
 ### Changed
-- **GL robustness:** `createResources` now calls `gl.checkFramebufferStatus` after attaching the tile texture to the FBO and throws a descriptive error (with hex status code) if the framebuffer is incomplete. Previously a misconfigured or unsupported FBO would silently produce a black screen.
-- **Zero finder:** Newton-polish the inferred second zero (z₂ = −z₁ mod Λ) rather than using the raw fold result. Reduces floating-point drift for skewed or highly-scaled lattices.
-- **Canonical τ policy:** Im(τ) is now enforced positive throughout. `normalizeTau` in TauPicker clamps to Im(τ) ≥ 0.05. `applyState` URL decoder enforces Im(τ) > 0. ω-handle drag uses `clampToPositiveDet` projection rather than a snap, so the handle stays under the pointer when approaching the real axis.
-- **TauPicker canvas:** Restricted to the upper half-plane (2:1 aspect, Im(τ) ∈ [0, 2.5]). Removed the decorative (1,0) reference dot.
-- **Removed "Flip Im(τ)" button** from TauPicker — no longer meaningful under the canonical upper-half-plane policy.
-- **Pole/zero glow constants:** The six shader tunables (`poleThreshold`, `poleSoftness`, `poleStrength`, `zeroThreshold`, `zeroSoftness`, `zeroStrength`) had no UI controls. Now GLSL constants in `tile.frag`. Removed from `RenderParams`, `GLResources`, `gl.ts`, `Viewport.svelte`, and `+page.svelte`.
-- **brightness/contrast constants:** `brightness=2.2` (Ember palette) is now a literal in `paletteEmber`. `contrast=1.0` produced a fixed `pow(color, 0.8)` gamma lift — inlined directly. Both removed from the full pipeline and URL encoding.
-- **Performance controls renamed:** Consistent parallel naming across both renderers. Variable/URL/label now follow `wp_*` / `tau_*` prefix scheme: `wp_tile` (℘ tile size px), `wp_terms` (℘ series terms), `tau_tile` (τ tile size px), `tau_terms` (τ series terms). Old URL keys `tile`/`terms` still parse as fallbacks. Added τ series terms slider (5–60, default 20) wired through to `u_terms` uniform in the modular shader. Canvas resized to 4:3 (200×150px). τ label moved from canvas overlay to HTML below the canvas. Grid lines in TauPicker now conditional on the "Complex grid" overlay toggle. Modular background resolution slider in Performance section (1×–6×, default 2×). TauPicker now has an optional WebGL background showing domain colouring of modular functions on the upper half-plane. Selector: `None | j(τ) | Δ(τ) | E4(τ) | E6(τ)`. Rendered via a new single-pass WebGL renderer (`modular_gl.ts` + `tau_modular.frag`) using truncated q-series (E4, E6 → Δ → j). Shares colour palettes with the main ℘ renderer via the extracted GLSL snippets. Background tracks the active colour mode. Shared GLSL extracted from `tile.frag` into `complex.glsl` (complex arithmetic + PI) and `colour.glsl` (hsv2rgb, cosPalette, four palettes). `gl.ts` assembles shaders via `assembleShader()` which splices snippets at marker comments. Sets up clean reuse for the upcoming modular-τ renderer. `tileUpdatesPerSec` displayed in the Performance panel — counts how often the GL tile render effect actually fires per second. Useful for spotting unnecessary re-renders. Counter lives in Viewport, sampled every second via `setInterval`, passed to Controls as a prop. Code comment and README note explaining why GL and overlay drawing share a single Svelte effect, and when it would be worth splitting.
+- **Sidebar header:** Replaced the mismatched close/reset buttons with a proper header bar — app title "Weierstrass $\wp$", GitHub link, icon-button reset, and icon-button close. Consistent 1.8rem icon buttons throughout.
+- **Shader snippets extracted:** Shared GLSL factored out of `tile.frag` into `complex.glsl` (complex arithmetic) and `colour.glsl` (four palette functions). Both renderers assemble their shaders via `assembleShader()` in `gl.ts`.
+- **Performance controls renamed:** Consistent `wp_*` / `tau_*` prefix scheme across variable names, URL keys, and UI labels: `wp_tile`, `wp_terms`, `tau_tile`, `tau_terms`. Old URL keys `tile`/`terms` still accepted as fallbacks.
+- **$\tau$ series terms slider:** New Performance slider (5–60, default 20) controls q-series truncation depth in the modular shader.
+- **TauPicker overlay:** DPR-aware canvas rendering — handles and lines are crisp on retina displays. Overlay now matches the Viewport style: white grid/axes, white vector line, orange $\tau$ handle with label, hover glow. Grid conditional on the Complex grid overlay toggle.
+- **TauPicker canvas:** Resized to 4:3 (200×150). $\tau$ value moved from canvas text to HTML label below.
+- **Canonical $\tau$ policy:** Im($\tau$) enforced > 0 throughout. Dragging an ω-handle across the real axis uses a smooth `clampToPositiveDet` projection rather than flipping ω₂. TauPicker canvas restricted to upper half-plane. "Flip Im($\tau$)" button removed.
+- **Consistency pass:** Unified font sizes (`0.78rem` labels, `0.75rem` monospace values, `0.70rem` section headers), section spacing (`0.75rem` gap), and select element styling across Controls and TauPicker.
+- **Combined render pipeline documented:** Code comment and README note explaining the known architectural simplification (overlay-only toggles trigger a GPU re-render).
+
+### Fixed
+- **Open button invisible when sidebar collapsed:** The `{#if !sidebarOpen}` block was nested inside the `<aside>` element, which slides off-screen when closed. Moved outside so it always renders in the stage layer.
+- **Modular resolution slider zoomed the view:** Setting canvas `width`/`height` reactively in HTML caused a timing mismatch with `gl.viewport()`. Fixed by setting pixel dimensions imperatively inside the render effect.
+
+### Removed
+- **Pole/zero glow tunables:** Six previously-tunable shader uniforms (`poleThreshold` etc.) had no UI controls. Replaced with GLSL constants in `tile.frag`.
+- **brightness/contrast state:** Both were fixed at their default values with no UI. `brightness=2.2` inlined into `paletteEmber`; `contrast=1.0` produces a fixed `pow(color, 0.8)` gamma lift, also inlined.
 
 ---
 
 ## 2026-03-13 — Initial production release
 
 - First GitHub Pages deployment.
-- Domain-colouring visualiser for the Weierstrass ℘-function.
+- Domain-colouring visualiser for the Weierstrass $\wp$-function.
 - Interactive ω₁/ω₂ handle dragging, pan, and zoom.
 - Four colour modes: Classic, Ember, Dusk, Contours.
 - Torus view mode alongside complex-plane view.

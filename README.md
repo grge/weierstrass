@@ -1,73 +1,108 @@
-# Weierstrass ℘
+# Weierstrass $\wp$
 
-Interactive visualisation of the Weierstrass elliptic function using domain colouring.
+Interactive domain-colouring visualiser for the Weierstrass elliptic function, with modular function backgrounds on the $\tau$-plane.
 
-Live demo: https://grge.github.io/weierstrass/
+**[Live demo →](https://grge.github.io/weierstrass/)**
+
+---
+
+## What it shows
+
+### Elliptic function view (main canvas)
+Domain colouring of $\wp(z; \omega_1, \omega_2)$ across the complex plane. Hue encodes the argument of $\wp(z)$, brightness encodes its magnitude. The lattice vectors $\omega_1$ and $\omega_2$ are draggable — reshaping them in real time updates the rendering, the pole/zero markers, and the $\tau$ display simultaneously.
+
+Four colour modes: **Classic** (Wegert-style conformal rings), **Ember** (warm cosine palette), **Dusk** (pure phase portrait), **Contours** (magnitude/argument level sets).
+
+Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers, pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing $\wp$ as a function on $\mathbb{C}/\Lambda$.
+
+### Modular background ($\tau$ picker)
+The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \operatorname{Im}(\tau) > 0\}$:
+
+- $j(\tau)$ — the modular $j$-invariant, with characteristic fractal structure along the real axis
+- $\Delta(\tau)$ — the Ramanujan discriminant form, non-vanishing on $\mathbb{H}$
+- $E_4(\tau)$ — weight-4 Eisenstein series, zero of order 2 at $\tau = i$
+- $E_6(\tau)$ — weight-6 Eisenstein series, zero of order 3 at $\tau = \rho = e^{i\pi/3}$
+
+All four are computed from truncated $q$-series ($q = e^{2\pi i\tau}$) using Eisenstein series $E_4$ and $E_6$, with $\Delta$ and $j$ derived algebraically. The colour palette tracks the main view.
+
+---
 
 ## The Mathematics
 
-The Weierstrass ℘-function is doubly periodic with respect to a lattice Λ = ℤω₁ + ℤω₂. It satisfies:
+The Weierstrass $\wp$-function is defined by:
 
-```
-℘(z) = 1/z² + Σ [ 1/(z−w)² − 1/w² ]
-```
+$$\wp(z) = \frac{1}{z^2} + \sum_{w \in \Lambda \setminus \{0\}} \left[ \frac{1}{(z-w)^2} - \frac{1}{w^2} \right]$$
 
-where the sum runs over all non-zero lattice points w ∈ Λ. The function has a double pole at each lattice point and exactly two zeros in each fundamental cell.
+where the sum runs over all non-zero lattice points $w \in \Lambda = \mathbb{Z}\omega_1 + \mathbb{Z}\omega_2$. It has a double pole at each lattice point and exactly two zeros per fundamental cell.
 
-The shape of the lattice is determined by τ = ω₂/ω₁, which must have Im(τ) > 0. Square lattices have τ = i, hexagonal lattices have τ = e^(iπ/3).
+The shape of the lattice is governed by $\tau = \omega_2/\omega_1 \in \mathbb{H}$. Square lattices have $\tau = i$; hexagonal lattices have $\tau = e^{i\pi/3}$.
 
-## Rendering Strategy
+The modular functions are computed via $q$-series at $q = e^{2\pi i\tau}$:
 
-The visualisation uses a two-pass WebGL pipeline to avoid redundant computation.
+$$E_4(\tau) = 1 + 240 \sum_{n \geq 1} \sigma_3(n)\, q^n$$
 
-**Pass 1 (Tile):** Compute ℘(z) for one fundamental cell (the unit square in lattice coordinates) and render it to a texture using domain colouring. The complex function value determines both hue (argument) and brightness (magnitude).
+$$E_6(\tau) = 1 - 504 \sum_{n \geq 1} \sigma_5(n)\, q^n$$
 
-**Pass 2 (Screen):** In plane view, tile this texture across the visible portion of the complex plane by mapping world coordinates to lattice coordinates mod 1. In torus view, display the tile directly, showing the fundamental domain as a topological torus.
+$$\Delta(\tau) = \frac{E_4^3 - E_6^2}{1728}, \qquad j(\tau) = \frac{E_4^3}{\Delta}$$
 
-This approach evaluates ℘ exactly once per tile pixel rather than once per screen pixel, making interactive exploration feasible even with high term counts in the lattice sum.
+---
 
-## Zero Finding
+## Rendering
 
-The two zeros of ℘ in the fundamental cell are located using Newton's method. On the first frame, a coarse grid search finds an approximate zero. Subsequent frames use the previous zeros as initial guesses (warm start), allowing Newton's method to converge in just a few iterations. This makes dragging the lattice vectors smooth even though zero positions must be recomputed continuously.
+**$\wp$ renderer (two-pass WebGL):**
+- Pass 1 renders $\wp(z)$ for one fundamental cell to an offscreen texture
+- Pass 2 tiles this texture across the visible screen by mapping world → lattice coordinates mod 1
+- This evaluates the lattice sum once per tile pixel rather than per screen pixel
+
+**Modular renderer (single-pass WebGL):**
+- Maps each fragment to $\tau = x + iy$ in the upper half-plane
+- Evaluates the $q$-series directly in GLSL
+- Fades near the real axis where $|q| \to 1$ and convergence degrades
+
+Shared GLSL: complex arithmetic helpers and all four colour palette functions live in `complex.glsl` and `colour.glsl`, imported by both renderers.
+
+---
 
 ## Code Structure
 
-The codebase follows a functional style with minimal abstractions.
+```
+src/lib/
+  math.ts          — wp, wp', Newton zero-finding, coordinate transforms
+  lattice.ts       — lattice arithmetic, τ↔basis conversion, canonicalization
+  gl.ts            — WebGL resource lifecycle, two-pass wp renderer
+  modular_gl.ts    — single-pass modular function renderer
+  types.ts         — shared TypeScript types
+  shaders/
+    quad.vert      — shared vertex shader
+    tile.frag      — wp evaluation + domain colouring (uses shared snippets)
+    screen.frag    — tiling / torus mapping pass
+    tau_modular.frag — modular q-series evaluation (uses shared snippets)
+    complex.glsl   — complex arithmetic (shared)
+    colour.glsl    — HSV, cosine palette, four colour modes (shared)
 
-**math.ts** contains pure functions: complex arithmetic, the JavaScript implementation of ℘ and ℘', zero-finding via Newton iteration, and coordinate transformations between world space, screen space, and lattice coordinates.
+src/routes/
+  +page.svelte     — application state, URL serialisation
+  Viewport.svelte  — main canvas, pan/zoom/drag interaction, overlays
+  Controls.svelte  — sidebar UI
+  TauPicker.svelte — τ picker with modular background canvas
+```
 
-**gl.ts** manages WebGL resource lifecycle. The `createResources` function allocates shaders, buffers, and textures. The `render` function executes the two-pass pipeline.
+---
 
-**Shaders:** `tile.frag` implements ℘ evaluation and four domain colouring modes (classic conformal rings, warm ember tones, gentle dusk phase portrait, and dark contour lines). The fragment shader computes the lattice sum directly in GLSL. `screen.frag` handles the tiling or direct display.
+## Technology
 
-**Viewport.svelte** manages the canvas, user interaction (pan, zoom, dragging lattice vectors), and overlay drawing. The overlay is a separate 2D canvas layer that renders the lattice grid, fundamental cell outline, and pole/zero markers. Both the GL tile render and the overlay draw are driven by a single Svelte effect, which means overlay-only changes (toggling grid lines, cell outline, etc.) also trigger a GPU re-render. The practical cost is low since these are infrequent interactions, but it is a known architectural simplification.
+- **SvelteKit** — Svelte 5 runes for reactive state
+- **WebGL 1.0** — maximum browser compatibility
+- **TypeScript** — light typing, function signatures and tagged unions
+- No external math or rendering libraries
 
-**Controls.svelte** and **TauPicker.svelte** provide the sidebar UI for adjusting lattice shape, visual parameters, and performance settings.
-
-**+page.svelte** coordinates application state and synchronises it with URL parameters, allowing specific visualisations to be bookmarked and shared.
-
-## Technology Choices
-
-**SvelteKit** provides reactive state management with minimal boilerplate. Svelte 5 runes (`$state`, `$derived`, `$effect`) handle reactivity cleanly without a separate state management library.
-
-**WebGL 1.0** is used for maximum browser compatibility. The tile texture approach works around the limitations of uniform arrays in WebGL 1.0 while maintaining good performance.
-
-**TypeScript** with strict mode enabled catches type errors at compile time. The type system is used lightly—mostly for function signatures and a few tagged unions—rather than elaborate type hierarchies.
-
-No external math libraries are used. Complex arithmetic and the Weierstrass function are implemented directly in about 150 lines of code.
+---
 
 ## Building
 
 ```sh
 npm install
-npm run dev
+npm run dev      # dev server at localhost:5173
+npm run build    # static site output to ./build
+npm run preview  # preview production build
 ```
-
-For production:
-
-```sh
-npm run build
-npm run preview
-```
-
-The build output is a static site that can be deployed anywhere.

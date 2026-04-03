@@ -168,7 +168,7 @@
 <style>
   /* ── base ── */
   :global(.sidebar) {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     color: rgba(255, 220, 180, 0.9);
     font-family: system-ui, sans-serif;
   }
@@ -183,7 +183,7 @@
     padding: 0.55rem 1rem;
     cursor: pointer;
     user-select: none;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -210,7 +210,7 @@
   .section-body {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.75rem;
     padding: 0.75rem 1rem 1rem;
   }
 
@@ -220,22 +220,24 @@
     flex-direction: column;
     gap: 0.35rem;
     color: rgba(255, 220, 180, 0.8);
+    font-size: 0.78rem;
   }
   .slider-header {
     display: flex;
     justify-content: space-between;
   }
   .val {
-    color: rgba(255, 180, 100, 0.6);
+    color: rgba(255, 180, 100, 0.65);
     font-family: monospace;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
   }
   select {
     background: #1a120f;
     border: 1px solid rgba(255, 150, 60, 0.2);
     color: rgba(255, 220, 180, 0.9);
     padding: 0.3rem 0.5rem;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
+    font-family: inherit;
     width: 100%;
   }
   input[type="range"] { width: 100%; accent-color: rgba(255, 150, 60, 0.8); }
@@ -257,6 +259,7 @@
     gap: 0.55rem;
     color: rgba(255, 220, 180, 0.8);
     cursor: pointer;
+    font-size: 0.78rem;
   }
   .overlay-row.torus-disabled {
     opacity: 0.3;

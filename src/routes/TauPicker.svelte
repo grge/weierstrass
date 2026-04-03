@@ -395,8 +395,8 @@
     background: #1a120f;
     border: 1px solid rgba(255, 150, 60, 0.2);
     color: rgba(255, 220, 180, 0.9);
-    padding: 0.2rem 0.4rem;
-    font-size: 0.72rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
     font-family: inherit;
   }
   input[type=range] {
