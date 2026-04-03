@@ -16,7 +16,7 @@ Four colour modes: **Classic** (Wegert-style conformal rings), **Ember** (warm c
 Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers, pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing $\wp$ as a function on $\mathbb{C}/\Lambda$.
 
 ### Modular background ($\tau$ picker)
-The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \operatorname{Im}(\tau) > 0\}$:
+The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \mathrm{Im}(\tau) > 0\}$:
 
 - $j(\tau)$ — the modular $j$-invariant, with characteristic fractal structure along the real axis
 - $\Delta(\tau)$ — the Ramanujan discriminant form, non-vanishing on $\mathbb{H}$
