@@ -22,6 +22,7 @@
   let showOmega:         boolean = $state(true);
   let sidebarOpen: boolean = $state(true);
   let tileUpdatesPerSec: number = $state(0);
+  let modularRes: number = $state(2);
 
   // ── URL state ─────────────────────────────────────────────────────────────
 
@@ -210,6 +211,7 @@
         bind:showOmega
         bind:colorMode
         {tileUpdatesPerSec}
+        bind:modularRes
       />
 
     {#if !sidebarOpen}

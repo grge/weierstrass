@@ -11,8 +11,10 @@
   let {
     omega1 = $bindable(),
     omega2 = $bindable(),
-    colorMode = 2,   // default dusk — matches main viewport default
-  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode } = $props();
+    colorMode = 2,
+    showGrid = false,
+    modularRes = 2,
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; modularRes?: number } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -47,7 +49,7 @@
 
   // ── Viewport ──────────────────────────────────────────────────────
   const W = 200;
-  const H = 100;
+  const H = 150;
   // Visible τ region: Re ∈ [-RANGE, RANGE], Im ∈ [0, RANGE]
   const RANGE = 2.5;
 
@@ -67,6 +69,10 @@
 
   // ── Modular background ────────────────────────────────────────────
   let modularFunc: ModularFunc | "none" = $state("none");
+
+  // GL canvas pixel dimensions — CSS size is fixed, this controls render resolution
+  let glW = $derived(W * modularRes);
+  let glH = $derived(H * modularRes);
 
   let glCanvas: HTMLCanvasElement;
   let glResources: ReturnType<typeof createModularResources> | null = null;
@@ -95,9 +101,9 @@
       glResources,
       modularFunc,
       colorMode,
-      -RANGE, RANGE,   // x range
-      0, RANGE,        // y range (upper half-plane)
-      W, H,
+      -RANGE, RANGE,
+      0, RANGE,
+      glW, glH,
     );
   });
 
@@ -128,7 +134,7 @@
 
   // ── Overlay draw (2D) ─────────────────────────────────────────────
   $effect(() => {
-    const tau = tauFromBasis(omega1, omega2);
+    void [omega1, omega2]; // reactive dependency
     if (!overlay) return;
     const hasBackground = modularFunc !== "none";
     const ctx = overlay.getContext("2d", { alpha: true })!;
@@ -140,20 +146,22 @@
       ctx.fillRect(0, 0, W, H);
     }
 
-    // Grid lines (more subtle when there's a modular background)
-    const gridAlpha = hasBackground ? 0.07 : 0.12;
-    ctx.strokeStyle = `rgba(255,180,100,${gridAlpha})`;
-    ctx.lineWidth = 0.5;
-    for (let v = 0; v <= 2; v++) {
-      const [,y0] = worldToCanvas(-RANGE, v);
-      ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
-    }
-    for (let u = -2; u <= 2; u++) {
-      const [x0] = worldToCanvas(u, 0);
-      ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, H); ctx.stroke();
+    // Grid lines — only when complex grid overlay is enabled
+    if (showGrid) {
+      const gridAlpha = hasBackground ? 0.2 : 0.12;
+      ctx.strokeStyle = `rgba(255,180,100,${gridAlpha})`;
+      ctx.lineWidth = 0.5;
+      for (let v = 0; v <= 2; v++) {
+        const [,y0] = worldToCanvas(-RANGE, v);
+        ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
+      }
+      for (let u = -2; u <= 2; u++) {
+        const [x0] = worldToCanvas(u, 0);
+        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, H); ctx.stroke();
+      }
     }
 
-    // Axes
+    // Axes always visible
     const axisAlpha = hasBackground ? 0.25 : 0.35;
     ctx.strokeStyle = `rgba(255,180,100,${axisAlpha})`;
     ctx.lineWidth = 1;
@@ -177,14 +185,13 @@
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Label
-    const tauLabel = `${tau.x.toFixed(2)} + ${tau.y.toFixed(2)}i`;
-    ctx.fillStyle = hasBackground ? "rgba(255,230,200,0.9)" : "rgba(255,220,180,0.7)";
-    ctx.font = "10px monospace";
-    ctx.fillText(`τ = ${tauLabel}`, 4, H - 4);
   });
 
   // ── Scale ─────────────────────────────────────────────────────────
+  const tau = $derived(tauFromBasis(omega1, omega2));
+  const tauLabel = $derived(
+    `τ = ${tau.x.toFixed(3)} + ${tau.y.toFixed(3)}i`
+  );
   let scaleValue = $derived(getScale(omega1));
   let logScale   = $derived(Math.log2(scaleValue));
 
@@ -216,6 +223,7 @@
       onpointercancel={onPointerUp}
     ></canvas>
   </div>
+  <div class="tau-label">{tauLabel}</div>
 
   <div class="tau-buttons">
     <button onclick={setSquare}>Square</button>
@@ -261,7 +269,7 @@
   .canvas-stack {
     position: relative;
     width: 100%;
-    aspect-ratio: 2 / 1;
+    aspect-ratio: 4 / 3;
     border: 1px solid rgba(255,150,60,0.2);
   }
 
@@ -330,5 +338,11 @@
     width: 100%;
     accent-color: rgba(255, 150, 60, 0.8);
     cursor: pointer;
+  }
+  .tau-label {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: rgba(255, 200, 150, 0.7);
+    text-align: right;
   }
 </style>

@@ -20,6 +20,7 @@
     viewMode = "plane",
     colorMode = $bindable(),
     tileUpdatesPerSec = 0,
+    modularRes = $bindable(2),
   }: {
     omega1: Vec2;
     omega2: Vec2;
@@ -34,13 +35,14 @@
     viewMode: ViewMode;
     colorMode: ColorMode;
     tileUpdatesPerSec?: number;
+    modularRes?: number;
   } = $props();
 </script>
 
 <!-- ── Lattice shape ────────────────────────────────── -->
 <details open>
   <summary>Lattice shape (&#964;)</summary>
-  <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} />
+  <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} {showGrid} bind:modularRes />
 </details>
 
 <!-- ── Domain colouring ─────────────────────────────── -->
@@ -145,6 +147,10 @@
     <label>
       <div class="slider-header"><span>Sum terms</span><span class="val">{terms}</span></div>
       <input type="range" min="1" max="20" step="1" bind:value={terms} />
+    </label>
+    <label>
+      <div class="slider-header"><span>τ background res</span><span class="val">{modularRes}×</span></div>
+      <input type="range" min="1" max="6" step="1" bind:value={modularRes} />
     </label>
     <div class="telemetry">
       <span class="telemetry-label">Tile renders</span>
