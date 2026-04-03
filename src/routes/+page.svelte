@@ -14,12 +14,6 @@
   let contrast: number = $state(1.0);
   let halo:          number = $state(1);
   let showHalo:      boolean = $state(false);
-  let poleThreshold: number = $state(3.0);
-  let poleSoftness: number = $state(6.0);
-  let poleStrength:  number = $state(2.0);
-  let zeroThreshold: number = $state(-1.0);
-  let zeroSoftness: number = $state(3.0);
-  let zeroStrength:  number = $state(2.0);
   let tileSize: number = $state(512);
   let terms: number = $state(5);
   let viewMode: ViewMode = $state("plane");
@@ -77,12 +71,6 @@
     p.set("brightness", String(r4(brightness)));
     p.set("contrast", String(r4(contrast)));
     p.set("halo", String(r4(halo)));
-    p.set("poleThreshold", String(r4(poleThreshold)));
-    p.set("poleSoftness", String(r4(poleSoftness)));
-    p.set("poleStrength", String(r4(poleStrength)));
-    p.set("zeroThreshold", String(r4(zeroThreshold)));
-    p.set("zeroSoftness", String(r4(zeroSoftness)));
-    p.set("zeroStrength", String(r4(zeroStrength)));
     p.set("grid", showGrid ? "1" : "0");
     p.set("lattice", showLattice ? "1" : "0");
     p.set("cell", showCell ? "1" : "0");
@@ -114,12 +102,6 @@
     brightness = parseNum(p.get("brightness"), 2.2);
     contrast = parseNum(p.get("contrast"), 1.0);
     halo = parseNum(p.get("halo"), 1.0);
-    poleThreshold = parseNum(p.get("poleThreshold"), 3.0);
-    poleSoftness = parseNum(p.get("poleSoftness"), 6.0);
-    poleStrength = parseNum(p.get("poleStrength"), 2.0);
-    zeroThreshold = parseNum(p.get("zeroThreshold"), -1.0);
-    zeroSoftness = parseNum(p.get("zeroSoftness"), 3.0);
-    zeroStrength = parseNum(p.get("zeroStrength"), 2.0);
     viewMode = p.get("view") === "torus" ? "torus" : "plane";
     tileSize = parseIntRange(p.get("tile"), 512, 64, 1024, 32);
     terms = parseIntRange(p.get("terms"), 5, 1, 20, 1);
@@ -144,9 +126,7 @@
 
   $effect(() => {
     void [omega1, omega2, zoom, pan.x, pan.y, colorMode, brightness, contrast,
-          halo, poleThreshold, poleSoftness, poleStrength,
-          zeroThreshold, zeroSoftness, zeroStrength,
-          viewMode, tileSize, terms, showGrid, showLattice, showCell,
+          halo, viewMode, tileSize, terms, showGrid, showLattice, showCell,
           showSpecialPoints, showHalo, showOmega];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
     const qs = encodeState();
@@ -175,12 +155,6 @@
     contrast = 1.0;
     halo = 1;
     showHalo = false;
-    poleThreshold = 3.0;
-    poleSoftness = 6.0;
-    poleStrength = 2.0;
-    zeroThreshold = -1.0;
-    zeroSoftness = 3.0;
-    zeroStrength = 2.0;
     tileSize = 512;
     terms = 5;
     viewMode = "plane";
@@ -208,12 +182,6 @@
       {brightness}
       {contrast}
       {halo}
-      {poleThreshold}
-      {poleSoftness}
-      {poleStrength}
-      {zeroThreshold}
-      {zeroSoftness}
-      {zeroStrength}
       {tileSize}
       {terms}
       {viewMode}

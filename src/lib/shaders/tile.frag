@@ -6,15 +6,17 @@ uniform int   u_mode;
 uniform float u_brightness;
 uniform float u_contrast;
 uniform float u_halo;
-uniform float u_pole_threshold;  // log|w| above which pole glow fires
-uniform float u_pole_softness;   // transition width in log units
-uniform float u_pole_strength;   // can exceed 1 for solid core
-uniform float u_zero_threshold;  // -log|w| above which zero darkening fires
-uniform float u_zero_softness;
-uniform float u_zero_strength;
 uniform int   u_terms;
 const float PI = 3.141592653589793;
 const int TERMS = 20;  // max; actual loop uses u_terms
+
+// Pole/zero glow constants (previously tunable uniforms, fixed at tuned values)
+const float POLE_THRESHOLD = 3.0;
+const float POLE_SOFTNESS  = 6.0;
+const float POLE_STRENGTH  = 2.0;
+const float ZERO_THRESHOLD = -1.0;
+const float ZERO_SOFTNESS  = 3.0;
+const float ZERO_STRENGTH  = 2.0;
 
 // ── complex arithmetic ────────────────────────────────────────────────────────
 
@@ -158,13 +160,13 @@ void main() {
     float lw = log(max(cAbs(w), 1e-9));  // log|w|: +∞ near poles, -∞ near zeros
 
     // Pole: white glow where log|w| exceeds threshold
-    float pole = smoothstep(u_pole_threshold, u_pole_threshold + u_pole_softness, lw)
-                 * u_pole_strength * u_halo;
+    float pole = smoothstep(POLE_THRESHOLD, POLE_THRESHOLD + POLE_SOFTNESS, lw)
+                 * POLE_STRENGTH * u_halo;
     color = mix(color, vec3(1.0), clamp(pole, 0.0, 1.0));
 
     // Zero: black darkening where -log|w| (i.e. log|1/w|) exceeds threshold
-    float zero = smoothstep(u_zero_threshold, u_zero_threshold + u_zero_softness, -lw)
-                 * u_zero_strength * u_halo;
+    float zero = smoothstep(ZERO_THRESHOLD, ZERO_THRESHOLD + ZERO_SOFTNESS, -lw)
+                 * ZERO_STRENGTH * u_halo;
     color *= (1.0 - clamp(zero, 0.0, 1.0));
   }
 

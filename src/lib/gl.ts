@@ -80,12 +80,6 @@ export function createResources(gl: WebGLRenderingContext, tileSize: number): GL
         brightness: uniform(gl, textureProgram, "u_brightness"),
         contrast: uniform(gl, textureProgram, "u_contrast"),
         halo: uniform(gl, textureProgram, "u_halo"),
-        poleThreshold: uniform(gl, textureProgram, "u_pole_threshold"),
-        poleSoftness: uniform(gl, textureProgram, "u_pole_softness"),
-        poleStrength: uniform(gl, textureProgram, "u_pole_strength"),
-        zeroThreshold: uniform(gl, textureProgram, "u_zero_threshold"),
-        zeroSoftness: uniform(gl, textureProgram, "u_zero_softness"),
-        zeroStrength: uniform(gl, textureProgram, "u_zero_strength"),
         terms: uniform(gl, textureProgram, "u_terms"),
       },
       screen: {
@@ -124,12 +118,6 @@ export function render(r: GLResources, p: RenderParams): void {
   gl.uniform1f(r.uniforms.texture.brightness, p.brightness);
   gl.uniform1f(r.uniforms.texture.contrast, p.contrast);
   gl.uniform1f(r.uniforms.texture.halo, p.halo);
-  gl.uniform1f(r.uniforms.texture.poleThreshold, p.poleThreshold);
-  gl.uniform1f(r.uniforms.texture.poleSoftness, p.poleSoftness);
-  gl.uniform1f(r.uniforms.texture.poleStrength, p.poleStrength);
-  gl.uniform1f(r.uniforms.texture.zeroThreshold, p.zeroThreshold);
-  gl.uniform1f(r.uniforms.texture.zeroSoftness, p.zeroSoftness);
-  gl.uniform1f(r.uniforms.texture.zeroStrength, p.zeroStrength);
   gl.uniform1i(r.uniforms.texture.terms, Math.max(1, Math.min(20, Math.round(p.terms))));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 

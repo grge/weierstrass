@@ -15,12 +15,6 @@
     brightness,
     contrast,
     halo,
-    poleThreshold,
-    poleSoftness,
-    poleStrength,
-    zeroThreshold,
-    zeroSoftness,
-    zeroStrength,
     tileSize,
     terms = 5,
     showGrid,
@@ -33,9 +27,7 @@
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
     tau: Vec2; mode: RenderMode; brightness: number; contrast: number;
-    halo: number; poleThreshold: number; poleSoftness: number; poleStrength: number;
-    zeroThreshold: number; zeroSoftness: number; zeroStrength: number;
-    tileSize: number; terms?: number;
+    halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
   } = $props();
@@ -100,8 +92,6 @@
     render(resources, {
       omega1, omega2, tau, zoom, pan, mode, brightness, contrast,
       halo: showHalo ? halo : 0,
-      poleThreshold, poleSoftness, poleStrength,
-      zeroThreshold, zeroSoftness, zeroStrength,
       viewMode, terms,
       width: w, height: h,
     });

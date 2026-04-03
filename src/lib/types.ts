@@ -19,12 +19,6 @@ export type GLResources = {
       brightness: WebGLUniformLocation;
       contrast: WebGLUniformLocation;
       halo: WebGLUniformLocation;
-      poleThreshold: WebGLUniformLocation;
-      poleSoftness: WebGLUniformLocation;
-      poleStrength: WebGLUniformLocation;
-      zeroThreshold: WebGLUniformLocation;
-      zeroSoftness: WebGLUniformLocation;
-      zeroStrength: WebGLUniformLocation;
       terms: WebGLUniformLocation;
     };
     screen: {
@@ -58,12 +52,6 @@ export type RenderParams = {
   brightness: number;
   contrast: number;
   halo: number;
-  poleThreshold: number;
-  poleSoftness: number;
-  poleStrength: number;
-  zeroThreshold: number;
-  zeroSoftness: number;
-  zeroStrength: number;
   viewMode: ViewMode;
   terms: number;
   width: number;
