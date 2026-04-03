@@ -221,6 +221,7 @@
         bind:tauTileSize
         bind:tauTerms
       />
+    </aside>
 
     {#if !sidebarOpen}
       <button class="open-btn" onclick={() => (sidebarOpen = true)} title="Show controls">&laquo;</button>
