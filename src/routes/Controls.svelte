@@ -15,6 +15,7 @@
     showOmega = $bindable(),
     viewMode = "plane",
     colorMode = $bindable(),
+    tileUpdatesPerSec = 0,
   }: {
     omega1: Vec2;
     omega2: Vec2;
@@ -28,6 +29,7 @@
     showOmega: boolean;
     viewMode: ViewMode;
     colorMode: ColorMode;
+    tileUpdatesPerSec?: number;
   } = $props();
 </script>
 
@@ -140,6 +142,10 @@
       <div class="slider-header"><span>Sum terms</span><span class="val">{terms}</span></div>
       <input type="range" min="1" max="20" step="1" bind:value={terms} />
     </label>
+    <div class="telemetry">
+      <span class="telemetry-label">Tile renders</span>
+      <span class="telemetry-val">{tileUpdatesPerSec}&thinsp;/s</span>
+    </div>
   </div>
 </details>
 
@@ -218,6 +224,15 @@
   }
   input[type="range"] { width: 100%; accent-color: rgba(255, 150, 60, 0.8); }
   input[type="checkbox"] { accent-color: rgba(255, 150, 60, 0.8); flex-shrink: 0; }
+  .telemetry {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: rgba(255, 180, 100, 0.5);
+    padding-top: 0.25rem;
+  }
+  .telemetry-val { color: rgba(255, 180, 100, 0.85); }
   .overlays { gap: 0.55rem; }
   .overlay-row {
     display: flex;

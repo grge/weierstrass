@@ -21,6 +21,7 @@
   let showSpecialPoints: boolean = $state(false);
   let showOmega:         boolean = $state(true);
   let sidebarOpen: boolean = $state(true);
+  let tileUpdatesPerSec: number = $state(0);
 
   // ── URL state ─────────────────────────────────────────────────────────────
 
@@ -181,6 +182,7 @@
       showOmega={viewMode === "plane" && showOmega}
       {showSpecialPoints}
       {showHalo}
+      bind:tileUpdatesPerSec
     />
 
     <!-- View mode toggle pill -->
@@ -207,8 +209,8 @@
         bind:showHalo
         bind:showOmega
         bind:colorMode
+        {tileUpdatesPerSec}
       />
-    </aside>
 
     {#if !sidebarOpen}
       <button class="open-btn" onclick={() => (sidebarOpen = true)} title="Show controls">&laquo;</button>

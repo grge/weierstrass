@@ -22,11 +22,13 @@
     showHalo,
     showOmega,
     viewMode = "plane",
+    tileUpdatesPerSec = $bindable(0),
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
+    tileUpdatesPerSec?: number;
   } = $props();
 
   let container: HTMLDivElement;
@@ -37,6 +39,8 @@
   let sizeVersion = $state(0);  // bumped on window resize to trigger re-render
   let drag: DragState | null = null;
   let hoverAnchor: "omega1" | "omega2" | null = $state(null);
+
+  let _tileRenderCount = 0;  // raw counter, sampled every second
 
   let prevZerosRef: Vec2[] = [];
   let zeros: Vec2[] = $state([]);
@@ -92,6 +96,7 @@
       viewMode, terms,
       width: w, height: h,
     });
+    _tileRenderCount++;
 
     drawOverlay(overlayCanvas, w, h, dpr, zeros);
 
@@ -424,7 +429,16 @@
       untrack(() => { sizeVersion++; });
     };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+
+    const interval = setInterval(() => {
+      untrack(() => { tileUpdatesPerSec = _tileRenderCount; });
+      _tileRenderCount = 0;
+    }, 1000);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      clearInterval(interval);
+    };
   });
 </script>
 
