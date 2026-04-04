@@ -33,6 +33,7 @@
 
   // ── Pane state ────────────────────────────────────────────────────────────
   let primaryPane: "ellipticFunction" | "modularForm" | "ellipticCurve" = $state("ellipticFunction");
+  let modularForm: "j" | "delta" | "e4" | "e6" = $state("j");
 
   const sidebarMode = $derived.by(() => {
     if (primaryPane === "ellipticCurve") return "adjacent";
@@ -55,6 +56,31 @@
 
   function r4(n: number) { return Math.round(n * 10000) / 10000; }
   const COLOR_MODES: ColorMode[] = ["classic", "ember", "dusk", "contours"];
+
+  // Default values for all state parameters
+  const DEFAULTS = {
+    tau: { x: 0.25, y: 1.2 },
+    scale: 1,
+    angle: 0,
+    zoom: 0.8,
+    pan: { x: 0.8, y: 0.7 },
+    colorMode: "dusk" as ColorMode,
+    viewMode: "plane" as ViewMode,
+    tileSize: 512,
+    terms: 5,
+    modularTileSize: 400,
+    modularTerms: 20,
+    halo: 1.0,
+    showGrid: false,
+    showLattice: false,
+    showCell: true,
+    showSpecialPoints: false,
+    showHalo: false,
+    showOmega: true,
+    primaryPane: "ellipticFunction" as const,
+    modularForm: "j" as const,
+    expr: "wp",
+  };
 
   function parseNum(value: string | null, fallback: number): number {
     const n = value === null ? NaN : Number(value);
@@ -85,28 +111,119 @@
     const scale = Math.sqrt(omega1.x ** 2 + omega1.y ** 2);
     const angle = Math.atan2(omega1.y, omega1.x);
     const p = new URLSearchParams();
-    p.set("tau", `${r4(tau.x)},${r4(tau.y)}`);
-    p.set("scale", String(r4(scale)));
+
+    // tau: only include if different from default
+    const roundedTau = { x: r4(tau.x), y: r4(tau.y) };
+    if (roundedTau.x !== DEFAULTS.tau.x || roundedTau.y !== DEFAULTS.tau.y) {
+      p.set("tau", `${roundedTau.x},${roundedTau.y}`);
+    }
+
+    // scale: only include if different from default
+    const roundedScale = r4(scale);
+    if (roundedScale !== DEFAULTS.scale) {
+      p.set("scale", String(roundedScale));
+    }
+
+    // angle: only include if different from default (0)
     const roundedAngle = r4(angle);
-    if (roundedAngle !== 0) p.set("angle", String(roundedAngle));
-    p.set("zoom", String(r4(zoom)));
-    p.set("pan", `${r4(pan.x)},${r4(pan.y)}`);
-    p.set("color", colorMode);
-    p.set("view", viewMode);
-    p.set("wp_tile", String(tileSize));
-    p.set("wp_terms", String(terms));
-    p.set("mod_tile", String(modularTileSize));
-    p.set("mod_terms", String(modularTerms));
-    p.set("halo", String(r4(halo)));
-    p.set("grid", showGrid ? "1" : "0");
-    p.set("lattice", showLattice ? "1" : "0");
-    p.set("cell", showCell ? "1" : "0");
-    p.set("markers", showSpecialPoints ? "1" : "0");
-    p.set("glow", showHalo ? "1" : "0");
-    p.set("omega", showOmega ? "1" : "0");
-    if (primaryPane !== "ellipticFunction") p.set("pane", primaryPane);
-    if (expr !== "wp") p.set("expr", expr);
-    return `?${p.toString()}`;
+    if (roundedAngle !== DEFAULTS.angle) {
+      p.set("angle", String(roundedAngle));
+    }
+
+    // zoom: only include if different from default
+    if (r4(zoom) !== DEFAULTS.zoom) {
+      p.set("zoom", String(r4(zoom)));
+    }
+
+    // pan: only include if different from default
+    const roundedPan = { x: r4(pan.x), y: r4(pan.y) };
+    if (roundedPan.x !== DEFAULTS.pan.x || roundedPan.y !== DEFAULTS.pan.y) {
+      p.set("pan", `${roundedPan.x},${roundedPan.y}`);
+    }
+
+    // colorMode: only include if different from default
+    if (colorMode !== DEFAULTS.colorMode) {
+      p.set("color", colorMode);
+    }
+
+    // viewMode: only include if different from default
+    if (viewMode !== DEFAULTS.viewMode) {
+      p.set("view", viewMode);
+    }
+
+    // tileSize: only include if different from default
+    if (tileSize !== DEFAULTS.tileSize) {
+      p.set("wp_tile", String(tileSize));
+    }
+
+    // terms: only include if different from default
+    if (terms !== DEFAULTS.terms) {
+      p.set("wp_terms", String(terms));
+    }
+
+    // modularTileSize: only include if different from default
+    if (modularTileSize !== DEFAULTS.modularTileSize) {
+      p.set("mod_tile", String(modularTileSize));
+    }
+
+    // modularTerms: only include if different from default
+    if (modularTerms !== DEFAULTS.modularTerms) {
+      p.set("mod_terms", String(modularTerms));
+    }
+
+    // halo: only include if different from default
+    if (r4(halo) !== DEFAULTS.halo) {
+      p.set("halo", String(r4(halo)));
+    }
+
+    // showGrid: only include if different from default (false)
+    if (showGrid !== DEFAULTS.showGrid) {
+      p.set("grid", showGrid ? "1" : "0");
+    }
+
+    // showLattice: only include if different from default (false)
+    if (showLattice !== DEFAULTS.showLattice) {
+      p.set("lattice", showLattice ? "1" : "0");
+    }
+
+    // showCell: only include if different from default (true), emit "0" when false
+    if (showCell !== DEFAULTS.showCell) {
+      p.set("cell", showCell ? "1" : "0");
+    }
+
+    // showSpecialPoints: only include if different from default (false)
+    if (showSpecialPoints !== DEFAULTS.showSpecialPoints) {
+      p.set("markers", showSpecialPoints ? "1" : "0");
+    }
+
+    // showHalo: only include if different from default (false)
+    if (showHalo !== DEFAULTS.showHalo) {
+      p.set("glow", showHalo ? "1" : "0");
+    }
+
+    // showOmega: only include if different from default (true)
+    if (showOmega !== DEFAULTS.showOmega) {
+      p.set("omega", showOmega ? "1" : "0");
+    }
+
+    // primaryPane: only include if different from default
+    if (primaryPane !== DEFAULTS.primaryPane) {
+      p.set("pane", primaryPane);
+    }
+
+    // expr: only include if different from default
+    if (expr !== DEFAULTS.expr) {
+      p.set("expr", expr);
+    }
+
+    // modularForm: only include if different from default
+    if (modularForm !== DEFAULTS.modularForm) {
+      p.set("mod_form", modularForm);
+    }
+
+    // Return empty string if all params are default, otherwise return query string
+    const qs = p.toString();
+    return qs.length > 0 ? `?${qs}` : "";
   }
 
   function applyState(search: string) {
@@ -146,6 +263,12 @@
     } else {
       primaryPane = "ellipticFunction";
     }
+    const modFormParam = p.get("mod_form");
+    if (modFormParam === "j" || modFormParam === "delta" || modFormParam === "e4" || modFormParam === "e6") {
+      modularForm = modFormParam;
+    } else {
+      modularForm = "j";
+    }
     expr = p.get("expr") ?? "wp";
   }
 
@@ -163,10 +286,11 @@
   $effect(() => {
     void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
           halo, viewMode, tileSize, terms, modularTileSize, modularTerms, showGrid, showLattice, showCell,
-          showSpecialPoints, showHalo, showOmega, expr, primaryPane];
+          showSpecialPoints, showHalo, showOmega, expr, primaryPane, modularForm];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
     const qs = encodeState();
-    if (window.location.search !== qs) history.replaceState(null, '', qs);
+    const newPath = qs ? window.location.pathname + qs : window.location.pathname;
+    if (window.location.search !== qs) history.replaceState(null, '', newPath);
   });
 
   // ── App state ─────────────────────────────────────────────────────────────
@@ -181,25 +305,27 @@
   };
 
   function reset() {
-    omega1 = { x: 1, y: 0 };
-    omega2 = { x: 0.25, y: 1.2 };
-    zoom = 0.8;
-    pan = { x: 0.8, y: 0.7 };
-    colorMode = "dusk";
-    halo = 1;
-    showHalo = false;
-    tileSize = 512;
-    terms = 5;
-    modularTileSize = 400;
-    modularTerms = 20;
-    viewMode = "plane";
-    showGrid = false;
-    showLattice = false;
-    showCell = true;
-    showSpecialPoints = false;
-    showOmega = true;
-    primaryPane = "ellipticFunction";
-    expr = "wp";
+    const basis = basisFromTau(DEFAULTS.tau, DEFAULTS.scale, DEFAULTS.angle);
+    omega1 = basis.omega1;
+    omega2 = basis.omega2;
+    zoom = DEFAULTS.zoom;
+    pan = { ...DEFAULTS.pan };
+    colorMode = DEFAULTS.colorMode;
+    halo = DEFAULTS.halo;
+    showHalo = DEFAULTS.showHalo;
+    tileSize = DEFAULTS.tileSize;
+    terms = DEFAULTS.terms;
+    modularTileSize = DEFAULTS.modularTileSize;
+    modularTerms = DEFAULTS.modularTerms;
+    viewMode = DEFAULTS.viewMode;
+    showGrid = DEFAULTS.showGrid;
+    showLattice = DEFAULTS.showLattice;
+    showCell = DEFAULTS.showCell;
+    showSpecialPoints = DEFAULTS.showSpecialPoints;
+    showOmega = DEFAULTS.showOmega;
+    primaryPane = DEFAULTS.primaryPane;
+    modularForm = DEFAULTS.modularForm;
+    expr = DEFAULTS.expr;
   }
 
   // ── Expression compilation effect ───────────────────────────────────────────
@@ -263,6 +389,7 @@
           bind:omega2
           bind:modularTileSize
           bind:modularTerms
+          bind:modularForm
           colorMode={COLOR_MODE_INDEX[colorMode]}
           {showGrid}
         />
@@ -371,6 +498,7 @@
             bind:omega2
             bind:modularTileSize
             bind:modularTerms
+            bind:modularForm
             colorMode={COLOR_MODE_INDEX[colorMode]}
             {showGrid}
           />

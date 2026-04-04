@@ -10,6 +10,7 @@
     omega2 = $bindable(),
     modularTileSize = $bindable(),
     modularTerms = $bindable(),
+    modularForm = $bindable(),
     colorMode,
     showGrid,
   }: {
@@ -19,11 +20,10 @@
     omega2: Vec2;
     modularTileSize: number;
     modularTerms: number;
+    modularForm: "j" | "delta" | "e4" | "e6";
     colorMode: RenderMode;
     showGrid: boolean;
   } = $props();
-
-  let modularFunc: "j" | "delta" | "e4" | "e6" = $state("j");
 
   // Reference to the primary-mode view instance — used to delegate button actions
   let viewInstance: ModularFormView | null = $state(null);
@@ -36,7 +36,7 @@
       bind:this={viewInstance}
       bind:omega1
       bind:omega2
-      bind:modularFunc
+      bind:modularForm
       tauTileSize={modularTileSize}
       tauTerms={modularTerms}
       {colorMode}
@@ -51,7 +51,7 @@
         <div class="control-group">
           <label class="inline-label">
             Modular form
-            <select bind:value={modularFunc}>
+            <select bind:value={modularForm}>
               <option value="j">j(τ)</option>
               <option value="delta">Δ(τ)</option>
               <option value="e4">E₄(τ)</option>
@@ -85,7 +85,7 @@
       <ModularFormView
         bind:omega1
         bind:omega2
-        bind:modularFunc
+        bind:modularForm
         tauTileSize={modularTileSize}
         tauTerms={modularTerms}
         {colorMode}

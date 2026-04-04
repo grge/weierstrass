@@ -23,6 +23,8 @@ All notable changes to this project will be documented here.
 - **Unified tile shader:** Expression engine is now the primary rendering path. The default expression `wp` renders the standard Weierstrass function. No separate hardcoded mode; all rendering uses the same compilation pipeline.
 - **Pole/zero markers temporarily disabled:** Calculating zeros of arbitrary expressions requires symbolic differentiation (deferred to M3+). Markers are disabled for now.
 - **Sidebar adjacent layout:** Changed sidebar from floating overlay (`position: absolute`) to flex-adjacent panel. Main stage now uses `display: flex; flex-direction: row` with viewport container (`flex: 1`) and sidebar (`360px fixed`). Viewport automatically resizes when sidebar opens/closes, solving torus view obstruction and improving spatial affordance. Sidebar animates via `width` and `opacity` transitions. Open button repositioned inside viewport.
+- **URL state:** Only non-default parameters are now encoded in the query string. Fresh loads produce clean URLs with no parameters; shared URLs only contain what's actually interesting. Added `mod_form` parameter to persist modular form selection.
+- **Modular form terminology:** Renamed internal variable from `modularFunc` to `modularForm` to reflect accurate mathematical naming (all four — j, Δ, E₄, E₆ — are modular forms).
 
 ---
 

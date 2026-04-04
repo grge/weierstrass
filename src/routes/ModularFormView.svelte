@@ -17,8 +17,8 @@
     tauTerms = $bindable(20),
     showControls = true,
     fillViewport = false,
-    modularFunc = $bindable("j"),
-  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize: number; tauTerms: number; showControls?: boolean; fillViewport?: boolean; modularFunc?: "j" | "delta" | "e4" | "e6" } = $props();
+    modularForm = $bindable("j"),
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize: number; tauTerms: number; showControls?: boolean; fillViewport?: boolean; modularForm?: "j" | "delta" | "e4" | "e6" } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -140,7 +140,7 @@
   }
 
   // ── Modular background ────────────────────────────────────────────
-  // modularFunc is now a bindable prop
+  // modularForm is now a bindable prop
 
   let glW = $derived(Math.round(tauTileSize));
   let glH = $derived(Math.round(tauTileSize * 3 / 4));  // 4:3 aspect
@@ -174,7 +174,7 @@
     }
     renderModular(
       glResources,
-      modularFunc,
+      modularForm,
       colorMode,
       -RANGE, RANGE,
       0, RANGE,
@@ -244,7 +244,7 @@
 
   // ── Overlay draw (2D) ─────────────────────────────────────────────
   $effect(() => {
-    void [omega1, omega2, hovering, dragging, showGrid, modularFunc, cssW, cssH];
+    void [omega1, omega2, hovering, dragging, showGrid, modularForm, cssW, cssH];
     if (!overlay) return;
 
     const dpr = Math.min(devicePixelRatio ?? 1, 2);
@@ -346,7 +346,7 @@
 
     <label class="inline-label">
       <span>Modular form</span>
-      <select bind:value={modularFunc}>
+      <select bind:value={modularForm}>
         <option value="j">j(τ)</option>
         <option value="delta">Δ(τ)</option>
         <option value="e4">E4(τ)</option>
