@@ -11,9 +11,13 @@
   let {
     g2 = 0,
     g3 = 0,
+    showControls = true,
+    fillViewport = false,
   }: {
     g2: number;
     g3: number;
+    showControls?: boolean;
+    fillViewport?: boolean;
   } = $props();
 
   let container: HTMLDivElement;
@@ -227,7 +231,7 @@
   }
 </script>
 
-<div class="curve-section">
+<div class="curve-section" class:fill-viewport={fillViewport}>
   <div class="canvas-stack" bind:this={container}>
     <canvas bind:this={canvas} width={320} height={240} class="curve-canvas"></canvas>
   </div>
@@ -236,6 +240,12 @@
 <style>
   .curve-section {
     padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .curve-section.fill-viewport {
+    width: 100%;
+    height: 100%;
   }
   .canvas-stack {
     position: relative;
@@ -244,6 +254,13 @@
     border: 1px solid rgba(255, 150, 60, 0.12);
     border-radius: 4px;
     overflow: hidden;
+  }
+  .fill-viewport .canvas-stack {
+    flex: 1;
+    aspect-ratio: unset;
+    height: 100%;
+    border: none;
+    border-radius: 0;
   }
   .curve-canvas {
     position: absolute;

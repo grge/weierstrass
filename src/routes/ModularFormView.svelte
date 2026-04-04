@@ -15,7 +15,10 @@
     showGrid = false,
     tauTileSize = $bindable(400),
     tauTerms = $bindable(20),
-  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize: number; tauTerms: number } = $props();
+    showControls = true,
+    fillViewport = false,
+    modularFunc = $bindable("j"),
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize: number; tauTerms: number; showControls?: boolean; fillViewport?: boolean; modularFunc?: "j" | "delta" | "e4" | "e6" } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -34,14 +37,6 @@
     const basis = basisFromTau(t, scale, angle);
     omega1 = basis.omega1;
     omega2 = basis.omega2;
-  }
-
-  function applyScale(newScale: number) {
-    const s = getScale(omega1);
-    if (s < 1e-12) return;
-    const f = newScale / s;
-    omega1 = { x: omega1.x * f, y: omega1.y * f };
-    omega2 = { x: omega2.x * f, y: omega2.y * f };
   }
 
   // ── Animation state ──────────────────────────────────────────────────
@@ -94,30 +89,24 @@
     return () => cancelAnimationFrame(rafId);
   });
 
-  function resetScale() {
-    const s = getScale(omega1);
-    if (s < 1e-12) return;
-    startAnimation({ x: omega1.x / s, y: omega1.y / s }, { x: omega2.x / s, y: omega2.y / s });
-  }
-
-  function setHex() {
-    const basis = basisFromTau({ x: 0.5, y: Math.sqrt(3) / 2 }, getScale(omega1), Math.atan2(omega1.y, omega1.x));
-    startAnimation(basis.omega1, basis.omega2);
-  }
-
-  function setSquare() {
+  export function setSquare() {
     const basis = basisFromTau({ x: 0, y: 1 }, getScale(omega1), Math.atan2(omega1.y, omega1.x));
     startAnimation(basis.omega1, basis.omega2);
   }
 
-  function applyT() {
+  export function setHex() {
+    const basis = basisFromTau({ x: 0.5, y: Math.sqrt(3) / 2 }, getScale(omega1), Math.atan2(omega1.y, omega1.x));
+    startAnimation(basis.omega1, basis.omega2);
+  }
+
+  export function applyT() {
     const tau = tauFromBasis(omega1, omega2);
     const newTau = { x: tau.x + 1, y: tau.y };
     const basis = basisFromTau(newTau, getScale(omega1), Math.atan2(omega1.y, omega1.x));
     startAnimation(basis.omega1, basis.omega2);
   }
 
-  function applyS() {
+  export function applyS() {
     const tau = tauFromBasis(omega1, omega2);
     const norm2 = tau.x * tau.x + tau.y * tau.y;
     if (norm2 < 1e-12) return;
@@ -151,7 +140,7 @@
   }
 
   // ── Modular background ────────────────────────────────────────────
-  let modularFunc: ModularFunc | "none" = $state("j");
+  // modularFunc is now a bindable prop
 
   let glW = $derived(Math.round(tauTileSize));
   let glH = $derived(Math.round(tauTileSize * 3 / 4));  // 4:3 aspect
@@ -178,7 +167,7 @@
   });
 
   $effect(() => {
-    if (modularFunc === "none" || !glResources || !glCanvas) return;
+    if (!glResources || !glCanvas) return;
     if (glCanvas.width !== glW || glCanvas.height !== glH) {
       glCanvas.width = glW;
       glCanvas.height = glH;
@@ -266,14 +255,8 @@
       overlay.height = h;
     }
 
-    const hasBackground = modularFunc !== "none";
     const ctx = overlay.getContext("2d", { alpha: true })!;
     ctx.clearRect(0, 0, w, h);
-
-    if (!hasBackground) {
-      ctx.fillStyle = "#1a1210";
-      ctx.fillRect(0, 0, w, h);
-    }
 
     // ── a) complex grid
     if (showGrid) {
@@ -333,16 +316,9 @@
   const tauLabel = $derived(
     `τ = ${tau.x.toFixed(3)} + ${tau.y.toFixed(3)}i`
   );
-  let scaleValue = $derived(getScale(omega1));
-  let logScale   = $derived(Math.log2(scaleValue));
-
-  function onScaleSlider(e: Event) {
-    const v = parseFloat((e.target as HTMLInputElement).value);
-    applyScale(Math.pow(2, v));
-  }
 </script>
 
-<div class="tau-section">
+<div class="tau-section" class:fill-viewport={fillViewport}>
   <div class="canvas-stack" bind:this={container}>
     <!-- GL layer: modular background -->
     <canvas
@@ -350,7 +326,6 @@
       width={400}
       height={300}
       class="tau-canvas gl-layer"
-      class:hidden={modularFunc === "none"}
     ></canvas>
     <!-- 2D layer: grid, axes, τ handle — also captures pointer events -->
     <canvas
@@ -366,39 +341,27 @@
       onpointerleave={onPointerLeave}
     ></canvas>
   </div>
-  <div class="tau-label">{tauLabel}</div>
+  {#if showControls}
+    <div class="tau-label">{tauLabel}</div>
 
-  <div class="tau-buttons">
-    <button title="Square lattice (τ = i)" onclick={setSquare}>i</button>
-    <button title="Hexagonal lattice (τ = e^(iπ/3))" onclick={setHex}>e<sup>iπ/3</sup></button>
-    <button title="Normalize scale to |ω₁| = 1" onclick={resetScale}>|ω₁| = 1</button>
-    <button title="Apply T generator: τ ↦ τ + 1" onclick={applyT}>τ + 1</button>
-    <button title="Apply S generator: τ ↦ −1/τ" onclick={applyS}>−1/τ</button>
-  </div>
+    <label class="inline-label">
+      <span>Modular form</span>
+      <select bind:value={modularFunc}>
+        <option value="j">j(τ)</option>
+        <option value="delta">Δ(τ)</option>
+        <option value="e4">E4(τ)</option>
+        <option value="e6">E6(τ)</option>
+      </select>
+    </label>
 
-  <label class="inline-label">
-    <span>Background</span>
-    <select bind:value={modularFunc}>
-      <option value="none">None</option>
-      <option value="j">j(τ)</option>
-      <option value="delta">Δ(τ)</option>
-      <option value="e4">E4(τ)</option>
-      <option value="e6">E6(τ)</option>
-    </select>
-  </label>
-
-  <label>
-    <div class="slider-header">
-      <span>Scale (|&#969;&#8321;|)</span>
-      <span class="val">{scaleValue.toFixed(3)}</span>
+    <div class="tau-buttons">
+      <span class="tau-buttons-label">τ =</span>
+      <button title="Square lattice (τ = i)" onclick={setSquare}>i</button>
+      <button title="Hexagonal lattice (τ = e^(iπ/3))" onclick={setHex}>e<sup>iπ/3</sup></button>
+      <button title="Apply T generator: τ ↦ τ + 1" onclick={applyT}>τ + 1</button>
+      <button title="Apply S generator: τ ↦ −1/τ" onclick={applyS}>−1/τ</button>
     </div>
-    <input
-      type="range"
-      min="-3" max="3" step="0.01"
-      value={logScale}
-      oninput={onScaleSlider}
-    />
-  </label>
+  {/if}
 </div>
 
 <style>
@@ -409,11 +372,24 @@
     gap: 8px;
   }
 
+  .tau-section.fill-viewport {
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+
   .canvas-stack {
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
     border: 1px solid rgba(255,150,60,0.2);
+  }
+
+  .fill-viewport .canvas-stack {
+    flex: 1;
+    aspect-ratio: unset;
+    height: 100%;
+    border: none;
   }
 
   .tau-canvas {
@@ -427,11 +403,19 @@
   .gl-layer   { background: #1a1210; }
   .overlay-layer { cursor: crosshair; }
 
-  .hidden { visibility: hidden; }
 
   .tau-buttons {
     display: flex;
+    align-items: center;
     gap: 4px;
+  }
+
+  .tau-buttons-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 200, 150, 0.75);
+    white-space: nowrap;
+    padding-right: 2px;
   }
 
   button {
@@ -468,11 +452,6 @@
     align-items: center;
     justify-content: space-between;
   }
-  .slider-header {
-    display: flex;
-    justify-content: space-between;
-  }
-  .val { color: rgba(255, 220, 180, 1); }
   select {
     background: #1a120f;
     border: 1px solid rgba(255, 150, 60, 0.2);
@@ -480,11 +459,6 @@
     padding: 0.3rem 0.5rem;
     font-size: 0.78rem;
     font-family: inherit;
-  }
-  input[type=range] {
-    width: 100%;
-    accent-color: rgba(255, 150, 60, 0.8);
-    cursor: pointer;
   }
   .tau-label {
     font-size: 0.72rem;

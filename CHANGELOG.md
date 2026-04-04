@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## 2026-04-04 (cont. 2)
+
+### Changed
+- **Focusable panes:** Any of the three visualisations can be promoted to fill the main viewport via an orange LED button in each sidebar card (lit = in main, dim = in sidebar). The other two remain as live thumbnails. Sidebar layout mode, overlay controls, and URL state all adapt to whichever pane is active.
+- **Pane renames:** Viewport/TauPicker/CurveView renamed to Elliptic function / Modular form / Elliptic curve throughout — filenames, variable names, URL params, and UI labels.
+
+---
+
 ## 2026-04-04 (cont.)
 
 ### Added

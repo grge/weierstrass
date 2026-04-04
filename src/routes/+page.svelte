@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Viewport from "./Viewport.svelte";
-  import Controls from "./Controls.svelte";
+  import EllipticFunctionPane from "./EllipticFunctionPane.svelte";
+  import ModularFormPane from "./ModularFormPane.svelte";
+  import EllipticCurvePane from "./EllipticCurvePane.svelte";
+  import PaneCard from "./PaneCard.svelte";
   import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
   import { compileExpression } from "$lib/expression/compile";
@@ -19,7 +21,6 @@
   let tileSize: number = $state(512);
   let terms: number = $state(5);
   let viewMode: ViewMode = $state("plane");
-  const sidebarMode = $derived(viewMode === "plane" ? "overlay" : "adjacent");
   let showGrid:          boolean = $state(false);
   let showLattice:       boolean = $state(false);
   let showCell:          boolean = $state(true);
@@ -27,8 +28,17 @@
   let showOmega:         boolean = $state(true);
   let sidebarOpen: boolean = $state(true);
   let tileUpdatesPerSec: number = $state(0);
-  let tauTileSize: number = $state(400);
-  let tauTerms: number = $state(20);
+  let modularTileSize: number = $state(400);
+  let modularTerms: number = $state(20);
+
+  // ── Pane state ────────────────────────────────────────────────────────────
+  let primaryPane: "ellipticFunction" | "modularForm" | "ellipticCurve" = $state("ellipticFunction");
+
+  const sidebarMode = $derived.by(() => {
+    if (primaryPane === "ellipticCurve") return "adjacent";
+    if (primaryPane === "modularForm")   return "overlay";
+    return viewMode === "torus" ? "adjacent" : "overlay";
+  });
 
   // ── Expression engine state ───────────────────────────────────────────────
   let expr: string = $state("wp");
@@ -85,8 +95,8 @@
     p.set("view", viewMode);
     p.set("wp_tile", String(tileSize));
     p.set("wp_terms", String(terms));
-    p.set("tau_tile", String(tauTileSize));
-    p.set("tau_terms", String(tauTerms));
+    p.set("mod_tile", String(modularTileSize));
+    p.set("mod_terms", String(modularTerms));
     p.set("halo", String(r4(halo)));
     p.set("grid", showGrid ? "1" : "0");
     p.set("lattice", showLattice ? "1" : "0");
@@ -94,6 +104,7 @@
     p.set("markers", showSpecialPoints ? "1" : "0");
     p.set("glow", showHalo ? "1" : "0");
     p.set("omega", showOmega ? "1" : "0");
+    if (primaryPane !== "ellipticFunction") p.set("pane", primaryPane);
     if (expr !== "wp") p.set("expr", expr);
     return `?${p.toString()}`;
   }
@@ -121,14 +132,20 @@
     viewMode = p.get("view") === "torus" ? "torus" : "plane";
     tileSize = parseIntRange(p.get("wp_tile") ?? p.get("tile"), 512, 64, 1024, 32);
     terms = parseIntRange(p.get("wp_terms") ?? p.get("terms"), 5, 1, 20, 1);
-    tauTileSize = parseIntRange(p.get("tau_tile"), 400, 100, 1200, 50);
-    tauTerms = parseIntRange(p.get("tau_terms"), 20, 5, 60, 5);
+    modularTileSize = parseIntRange(p.get("mod_tile") ?? p.get("tau_tile"), 400, 100, 1200, 50);
+    modularTerms = parseIntRange(p.get("mod_terms") ?? p.get("tau_terms"), 20, 5, 60, 5);
     showGrid = bool("grid", false);
     showLattice = bool("lattice", false);
     showCell = bool("cell", true);
     showSpecialPoints = bool("markers", false);
     showHalo = bool("glow", false);
     showOmega = bool("omega", true);
+    const paneParam = p.get("pane");
+    if (paneParam === "modularForm" || paneParam === "ellipticCurve") {
+      primaryPane = paneParam;
+    } else {
+      primaryPane = "ellipticFunction";
+    }
     expr = p.get("expr") ?? "wp";
   }
 
@@ -145,8 +162,8 @@
 
   $effect(() => {
     void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
-          halo, viewMode, tileSize, terms, tauTileSize, tauTerms, showGrid, showLattice, showCell,
-          showSpecialPoints, showHalo, showOmega, expr];
+          halo, viewMode, tileSize, terms, modularTileSize, modularTerms, showGrid, showLattice, showCell,
+          showSpecialPoints, showHalo, showOmega, expr, primaryPane];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
     const qs = encodeState();
     if (window.location.search !== qs) history.replaceState(null, '', qs);
@@ -162,7 +179,6 @@
     dusk: 2,
     contours: 3,
   };
-  const modeIndex = $derived(COLOR_MODE_INDEX[colorMode]);
 
   function reset() {
     omega1 = { x: 1, y: 0 };
@@ -174,14 +190,15 @@
     showHalo = false;
     tileSize = 512;
     terms = 5;
-    tauTileSize = 400;
-    tauTerms = 20;
+    modularTileSize = 400;
+    modularTerms = 20;
     viewMode = "plane";
     showGrid = false;
     showLattice = false;
     showCell = true;
     showSpecialPoints = false;
     showOmega = true;
+    primaryPane = "ellipticFunction";
     expr = "wp";
   }
 
@@ -208,40 +225,62 @@
 
 <div class="app">
   <div class="stage">
+    <!-- Primary pane viewport -->
     <div class="viewport-container">
-      <Viewport
-        bind:omega1
-        bind:omega2
-        bind:zoom
-        bind:pan
-        {tau}
-        mode={modeIndex}
-        {halo}
-        {tileSize}
-        {terms}
-        bind:viewMode
-        showGrid={viewMode === "plane" && showGrid}
-        showLattice={viewMode === "plane" && showLattice}
-        showCell={viewMode === "plane" && showCell}
-        showOmega={viewMode === "plane" && showOmega}
-        {showSpecialPoints}
-        {showHalo}
-        bind:tileUpdatesPerSec
-        {expr}
-        {exprStatus}
-        {exprError}
-        {exprGlslBody}
-        onExprChange={(newExpr) => (expr = newExpr)}
-        {g2}
-        {g3}
-      />
+      {#if primaryPane === "ellipticFunction"}
+        <EllipticFunctionPane
+          mode="primary"
+          bind:omega1
+          bind:omega2
+          bind:zoom
+          bind:pan
+          {tau}
+          renderMode={COLOR_MODE_INDEX[colorMode]}
+          {halo}
+          bind:tileSize
+          bind:terms
+          bind:viewMode
+          showGrid={viewMode === "plane" && showGrid}
+          showLattice={viewMode === "plane" && showLattice}
+          showCell={viewMode === "plane" && showCell}
+          showOmega={viewMode === "plane" && showOmega}
+          {showSpecialPoints}
+          bind:showHalo
+          tileUpdatesPerSec={tileUpdatesPerSec}
+          {expr}
+          {exprStatus}
+          {exprError}
+          {exprGlslBody}
+          onExprChange={(newExpr) => (expr = newExpr)}
+          bind:colorMode
+          {g2}
+          {g3}
+        />
+      {:else if primaryPane === "modularForm"}
+        <ModularFormPane
+          mode="primary"
+          bind:omega1
+          bind:omega2
+          bind:modularTileSize
+          bind:modularTerms
+          colorMode={COLOR_MODE_INDEX[colorMode]}
+          {showGrid}
+        />
+      {:else}
+        <EllipticCurvePane
+          mode="primary"
+          {g2}
+          {g3}
+        />
+      {/if}
 
       {#if !sidebarOpen}
         <button class="open-btn" onclick={() => (sidebarOpen = true)} title="Show controls">&laquo;</button>
       {/if}
     </div>
 
-    <aside class="sidebar" class:hidden={!sidebarOpen} class:overlay={viewMode === "plane"}>
+    <!-- Sidebar with pane cards + static settings -->
+    <aside class="sidebar" class:hidden={!sidebarOpen} class:overlay={sidebarMode === "overlay"}>
       <div class="sidebar-header">
         <span class="sidebar-title">Weierstrass ℘</span>
         <div class="sidebar-actions">
@@ -278,25 +317,200 @@
           </button>
         </div>
       </div>
-      <Controls
-        bind:omega1
-        bind:omega2
-        bind:tileSize
-        bind:terms
-        {viewMode}
-        bind:showGrid
-        bind:showLattice
-        bind:showCell
-        bind:showSpecialPoints
-        bind:showHalo
-        bind:showOmega
-        bind:colorMode
-        {tileUpdatesPerSec}
-        bind:tauTileSize
-        bind:tauTerms
-        {g2}
-        {g3}
-      />
+
+      <!-- Elliptic Function pane card -->
+      <PaneCard
+        label="Elliptic function"
+        isPrimary={primaryPane === "ellipticFunction"}
+        onPromote={() => (primaryPane = "ellipticFunction")}
+      >
+        {#snippet children()}
+          <EllipticFunctionPane
+            mode="sidebar"
+            isPrimary={primaryPane === "ellipticFunction"}
+            bind:omega1
+            bind:omega2
+            bind:zoom
+            bind:pan
+            {tau}
+            renderMode={COLOR_MODE_INDEX[colorMode]}
+            {halo}
+            bind:tileSize
+            bind:terms
+            bind:viewMode
+            {showGrid}
+            {showLattice}
+            {showCell}
+            {showOmega}
+            {showSpecialPoints}
+            bind:showHalo
+            tileUpdatesPerSec={tileUpdatesPerSec}
+            {expr}
+            {exprStatus}
+            {exprError}
+            {exprGlslBody}
+            onExprChange={(newExpr) => (expr = newExpr)}
+            bind:colorMode
+            {g2}
+            {g3}
+          />
+        {/snippet}
+      </PaneCard>
+
+      <!-- Modular Form pane card -->
+      <PaneCard
+        label="Modular form"
+        isPrimary={primaryPane === "modularForm"}
+        onPromote={() => (primaryPane = "modularForm")}
+      >
+        {#snippet children()}
+          <ModularFormPane
+            mode="sidebar"
+            isPrimary={primaryPane === "modularForm"}
+            bind:omega1
+            bind:omega2
+            bind:modularTileSize
+            bind:modularTerms
+            colorMode={COLOR_MODE_INDEX[colorMode]}
+            {showGrid}
+          />
+        {/snippet}
+      </PaneCard>
+
+      <!-- Elliptic Curve pane card -->
+      <PaneCard
+        label="Elliptic curve"
+        isPrimary={primaryPane === "ellipticCurve"}
+        onPromote={() => (primaryPane = "ellipticCurve")}
+      >
+        {#snippet children()}
+          <EllipticCurvePane
+            mode="sidebar"
+            isPrimary={primaryPane === "ellipticCurve"}
+            {g2}
+            {g3}
+          />
+        {/snippet}
+      </PaneCard>
+
+      <!-- Static settings sections -->
+      <!-- Domain colouring -->
+      <details>
+        <summary>Domain colouring</summary>
+        <div class="section-body">
+          <label>Mode
+            <select bind:value={colorMode}>
+              <option value="classic">Classic</option>
+              <option value="ember">Ember</option>
+              <option value="dusk">Dusk</option>
+              <option value="contours">Contours</option>
+            </select>
+          </label>
+        </div>
+      </details>
+
+      <!-- Overlays -->
+      <details>
+        <summary>Overlays</summary>
+        <div class="section-body overlays">
+          <label class="overlay-row" class:torus-disabled={viewMode === "torus"}>
+            <input type="checkbox" bind:checked={showGrid} disabled={viewMode === "torus"} />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <line x1="0" y1="7" x2="28" y2="7" stroke="rgba(160,210,255,0.7)" stroke-width="1.5"/>
+              <line x1="14" y1="0" x2="14" y2="14" stroke="rgba(160,210,255,0.7)" stroke-width="1.5"/>
+              <line x1="0" y1="3.5" x2="28" y2="3.5" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
+              <line x1="0" y1="10.5" x2="28" y2="10.5" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
+              <line x1="7" y1="0" x2="7" y2="14" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
+              <line x1="21" y1="0" x2="21" y2="14" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
+            </svg>
+            Complex grid
+          </label>
+
+          <label class="overlay-row" class:torus-disabled={viewMode === "torus"}>
+            <input type="checkbox" bind:checked={showLattice} disabled={viewMode === "torus"} />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <path d="M2,12 L10,2 L26,2 L18,12 Z" stroke="rgba(255,215,90,0.6)" stroke-width="1.5"/>
+              <path d="M10,2 L18,12" stroke="rgba(255,215,90,0.4)" stroke-width="1" stroke-dasharray="2,2"/>
+            </svg>
+            Cell lattice
+          </label>
+
+          <label class="overlay-row" class:torus-disabled={viewMode === "torus"}>
+            <input type="checkbox" bind:checked={showCell} disabled={viewMode === "torus"} />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <rect x="3" y="2" width="22" height="10" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>
+            </svg>
+            Fundamental cell
+          </label>
+
+          <label class="overlay-row disabled" title="Temporarily unavailable for custom expressions">
+            <input type="checkbox" disabled />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <line x1="3" y1="3" x2="9" y2="9" stroke="rgba(255,80,80,0.9)" stroke-width="1.5"/>
+              <line x1="9" y1="3" x2="3" y2="9" stroke="rgba(255,80,80,0.9)" stroke-width="1.5"/>
+              <circle cx="20" cy="7" r="4" stroke="rgba(80,210,175,0.9)" stroke-width="1.5"/>
+            </svg>
+            Poles &amp; zeros markers
+          </label>
+
+          <label class="overlay-row">
+            <input type="checkbox" bind:checked={showHalo} />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <defs>
+                <radialGradient id="pg" cx="25%" cy="50%" r="25%">
+                  <stop offset="0%" stop-color="white" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="zg" cx="75%" cy="50%" r="25%">
+                  <stop offset="0%" stop-color="black" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="black" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="28" height="14" fill="rgba(80,40,20,0.6)"/>
+              <circle cx="7" cy="7" r="6" fill="url(#pg)"/>
+              <circle cx="21" cy="7" r="6" fill="url(#zg)"/>
+            </svg>
+            Pole &amp; zero glow
+          </label>
+
+          <label class="overlay-row" class:torus-disabled={viewMode === "torus"}>
+            <input type="checkbox" bind:checked={showOmega} disabled={viewMode === "torus"} />
+            <svg class="swatch" viewBox="0 0 28 14" fill="none">
+              <line x1="4" y1="12" x2="20" y2="4" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+              <circle cx="20" cy="4" r="4" fill="rgba(255,140,40,1)" stroke="rgba(255,255,255,0.7)" stroke-width="1"/>
+              <circle cx="4" cy="12" r="2" fill="rgba(255,255,255,0.7)"/>
+            </svg>
+            ω₁ / ω₂ vectors
+          </label>
+        </div>
+      </details>
+
+      <!-- Performance -->
+      <details>
+        <summary>Performance</summary>
+        <div class="section-body">
+          <label>
+            <div class="slider-header"><span>℘ tile size</span><span class="val">{tileSize}px</span></div>
+            <input type="range" min="64" max="1024" step="32" bind:value={tileSize} />
+          </label>
+          <label>
+            <div class="slider-header"><span>℘ series terms</span><span class="val">{terms}</span></div>
+            <input type="range" min="1" max="20" step="1" bind:value={terms} />
+          </label>
+          <label>
+            <div class="slider-header"><span>Modular tile size</span><span class="val">{modularTileSize}px</span></div>
+            <input type="range" min="100" max="1200" step="50" bind:value={modularTileSize} />
+          </label>
+          <label>
+            <div class="slider-header"><span>Modular series terms</span><span class="val">{modularTerms}</span></div>
+            <input type="range" min="5" max="60" step="5" bind:value={modularTerms} />
+          </label>
+          <div class="telemetry">
+            <span class="telemetry-label">Tile renders</span>
+            <span class="telemetry-val">{tileUpdatesPerSec}&thinsp;/s</span>
+          </div>
+        </div>
+      </details>
     </aside>
   </div>
 </div>
@@ -339,6 +553,8 @@
     transition: width 0.2s ease, opacity 0.2s ease;
     position: relative;
     flex-shrink: 0;
+    font-size: 0.78rem;
+    color: rgba(255, 220, 180, 0.9);
   }
 
   /* Overlay mode (for plane view) */
@@ -443,5 +659,114 @@
     background: rgba(18, 13, 11, 0.85);
     border-color: rgba(255, 150, 60, 0.4);
     color: rgba(255, 200, 150, 0.95);
+  }
+
+  /* ── Collapsible sections (details) ── */
+  :global(.sidebar) details {
+    border-bottom: 1px solid rgba(255, 150, 60, 0.12);
+  }
+  :global(.sidebar) summary {
+    display: flex;
+    align-items: center;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.70rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 200, 150, 0.6);
+    list-style: none;
+    gap: 0.5rem;
+  }
+  :global(.sidebar) summary::-webkit-details-marker { display: none; }
+  :global(.sidebar) summary::before {
+    content: "›";
+    font-size: 1rem;
+    transition: transform 0.15s ease;
+    color: rgba(255, 150, 60, 0.5);
+    line-height: 1;
+  }
+  :global(.sidebar) details[open] summary::before {
+    transform: rotate(90deg);
+  }
+  :global(.sidebar) summary:hover {
+    color: rgba(255, 220, 180, 0.85);
+    background: rgba(255, 150, 60, 0.04);
+  }
+
+  /* ── Section body ── */
+  .section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  /* ── Form controls ── */
+  :global(.sidebar) label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: rgba(255, 220, 180, 0.8);
+    font-size: 0.78rem;
+  }
+  :global(.sidebar) .slider-header {
+    display: flex;
+    justify-content: space-between;
+  }
+  :global(.sidebar) .val {
+    color: rgba(255, 180, 100, 0.65);
+    font-family: monospace;
+    font-size: 0.75rem;
+  }
+  :global(.sidebar) select {
+    background: #1a120f;
+    border: 1px solid rgba(255, 150, 60, 0.2);
+    color: rgba(255, 220, 180, 0.9);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+    font-family: inherit;
+    width: 100%;
+  }
+  :global(.sidebar) input[type="range"] { width: 100%; accent-color: rgba(255, 150, 60, 0.8); }
+  :global(.sidebar) input[type="checkbox"] { accent-color: rgba(255, 150, 60, 0.8); flex-shrink: 0; }
+  :global(.sidebar) .telemetry {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: rgba(255, 180, 100, 0.5);
+    padding-top: 0.25rem;
+  }
+  :global(.sidebar) .telemetry-val { color: rgba(255, 180, 100, 0.85); }
+  :global(.sidebar) .overlays { gap: 0.55rem; }
+  :global(.sidebar) .overlay-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.55rem;
+    color: rgba(255, 220, 180, 0.8);
+    cursor: pointer;
+    font-size: 0.78rem;
+  }
+  :global(.sidebar) .overlay-row.torus-disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  :global(.sidebar) .overlay-row.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  :global(.sidebar) .overlay-row.disabled input {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  :global(.sidebar) .swatch {
+    width: 28px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.9;
   }
 </style>

@@ -31,6 +31,7 @@
     onExprChange = (e: string) => {},
     g2 = 0,
     g3 = 0,
+    showOverlay = true,
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
@@ -44,6 +45,7 @@
     onExprChange?: (expr: string) => void;
     g2?: number;
     g3?: number;
+    showOverlay?: boolean;
   } = $props();
 
   let container: HTMLDivElement;
@@ -498,17 +500,19 @@
 >
   <canvas bind:this={glCanvas}      class="gl-canvas"></canvas>
   <canvas bind:this={overlayCanvas} class="overlay-canvas"></canvas>
-  <ExpressionOverlay
-    {expr}
-    status={exprStatus}
-    error={exprError}
-    onExprChange={onExprChange}
-    bind:viewMode
-  />
-  <div class="hint">
-    <span>drag ω₁ or ω₂ · pan background</span>
-    <span>scroll to zoom</span>
-  </div>
+  {#if showOverlay}
+    <ExpressionOverlay
+      {expr}
+      status={exprStatus}
+      error={exprError}
+      onExprChange={onExprChange}
+      bind:viewMode
+    />
+    <div class="hint">
+      <span>drag ω₁ or ω₂ · pan background</span>
+      <span>scroll to zoom</span>
+    </div>
+  {/if}
 </div>
 
 <style>

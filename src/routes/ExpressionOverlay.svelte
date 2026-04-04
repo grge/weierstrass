@@ -1,11 +1,5 @@
 <script lang="ts">
-  const PRESET_EXPRESSIONS = [
-    "wp",
-    "wpp",
-    "wp^2 - 1/12",
-    "wpp^2 - 4*wp^3 + g2*wp + g3",
-    "wpp/(wp - 1)",
-  ];
+  import { EXPR_PRESETS } from "$lib/expr-presets";
 
   let {
     expr = "wp",
@@ -100,13 +94,13 @@
         <div class="preset-help">
           Use <span class="code">wp</span> for ℘ and <span class="code">wpp</span> for ℘′. Operators: <span class="code">+ - * / ( ) ^k</span>
         </div>
-        {#each PRESET_EXPRESSIONS as preset}
+        {#each EXPR_PRESETS as preset}
           <button
             class="preset-option"
-            class:active={inputValue === preset}
-            onclick={() => applyExpression(preset)}
+            class:active={inputValue === preset.value}
+            onclick={() => applyExpression(preset.value)}
           >
-            {preset}
+            {preset.label}
           </button>
         {/each}
       </div>
