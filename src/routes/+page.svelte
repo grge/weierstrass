@@ -19,6 +19,7 @@
   let tileSize: number = $state(512);
   let terms: number = $state(5);
   let viewMode: ViewMode = $state("plane");
+  const sidebarMode = $derived(viewMode === "plane" ? "overlay" : "adjacent");
   let showGrid:          boolean = $state(false);
   let showLattice:       boolean = $state(false);
   let showCell:          boolean = $state(true);
@@ -218,7 +219,7 @@
         {halo}
         {tileSize}
         {terms}
-        {viewMode}
+        bind:viewMode
         showGrid={viewMode === "plane" && showGrid}
         showLattice={viewMode === "plane" && showLattice}
         showCell={viewMode === "plane" && showCell}
@@ -240,7 +241,7 @@
       {/if}
     </div>
 
-    <aside class="sidebar" class:hidden={!sidebarOpen}>
+    <aside class="sidebar" class:hidden={!sidebarOpen} class:overlay={viewMode === "plane"}>
       <div class="sidebar-header">
         <span class="sidebar-title">Weierstrass ℘</span>
         <div class="sidebar-actions">
@@ -316,6 +317,7 @@
   }
 
   .stage {
+    position: relative;
     display: flex;
     flex-direction: row;
     width: 100%;
@@ -329,15 +331,27 @@
   }
 
   .sidebar {
-    position: relative;
     width: 360px;
     height: 100%;
-    flex-shrink: 0;
     overflow-y: auto;
     background: #120d0b;
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
     transition: width 0.2s ease, opacity 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
   }
+
+  /* Overlay mode (for plane view) */
+  .sidebar.overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    z-index: 100;
+    background: rgba(18, 13, 11, 0.98);
+    flex-shrink: unset;
+  }
+
   .sidebar.hidden {
     width: 0;
     overflow: hidden;

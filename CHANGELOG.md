@@ -13,6 +13,7 @@ All notable changes to this project will be documented here.
 ### Changed
 - **τ picker buttons redesigned:** Consolidated into a single compact row with mathematical labels (i, e^(iπ/3), |ω₁| = 1, τ + 1, −1/τ) using monospace font and tooltips.
 - **τ picker background default:** Changed from "None" to "j(τ)" for richer visual context.
+- **Adaptive sidebar layout:** Sidebar switches between overlay (plane view) and adjacent (torus view) modes based on viewMode. In plane mode, sidebar floats over the viewport (maintaining correct aspect ratio during open/close animation); in torus view, sidebar is adjacent. Layout mode derived from viewMode, keeping concerns cleanly separated.
 
 ---
 
