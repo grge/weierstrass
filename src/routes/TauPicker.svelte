@@ -44,9 +44,87 @@
     omega2 = { x: omega2.x * f, y: omega2.y * f };
   }
 
-  function resetScale() { applyScale(1.0); }
-  function setHex()    { applyTau({ x: 0.5, y: Math.sqrt(3) / 2 }); }
-  function setSquare() { applyTau({ x: 0, y: 1 }); }
+  // ── Animation state ──────────────────────────────────────────────────
+  let animating = $state(false);
+  let animStart = 0;
+  const animDuration = 400; // ms
+  let animStartOmega1: Vec2 = { x: 0, y: 0 };
+  let animStartOmega2: Vec2 = { x: 0, y: 0 };
+  let animTargetOmega1: Vec2 = { x: 0, y: 0 };
+  let animTargetOmega2: Vec2 = { x: 0, y: 0 };
+
+  function easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function startAnimation(target1: Vec2, target2: Vec2) {
+    if (animating) return;
+    animStartOmega1 = { ...omega1 };
+    animStartOmega2 = { ...omega2 };
+    animTargetOmega1 = target1;
+    animTargetOmega2 = target2;
+    animStart = performance.now();
+    animating = true;
+  }
+
+  $effect(() => {
+    if (!animating) return;
+    let rafId: number;
+    const handleFrame = (now: number) => {
+      const elapsed = now - animStart;
+      const progress = Math.min(elapsed / animDuration, 1);
+      const eased = easeInOutCubic(progress);
+      omega1 = {
+        x: animStartOmega1.x + (animTargetOmega1.x - animStartOmega1.x) * eased,
+        y: animStartOmega1.y + (animTargetOmega1.y - animStartOmega1.y) * eased,
+      };
+      omega2 = {
+        x: animStartOmega2.x + (animTargetOmega2.x - animStartOmega2.x) * eased,
+        y: animStartOmega2.y + (animTargetOmega2.y - animStartOmega2.y) * eased,
+      };
+      if (progress < 1) {
+        rafId = requestAnimationFrame(handleFrame);
+      } else {
+        omega1 = animTargetOmega1;
+        omega2 = animTargetOmega2;
+        animating = false;
+      }
+    };
+    rafId = requestAnimationFrame(handleFrame);
+    return () => cancelAnimationFrame(rafId);
+  });
+
+  function resetScale() {
+    const s = getScale(omega1);
+    if (s < 1e-12) return;
+    startAnimation({ x: omega1.x / s, y: omega1.y / s }, { x: omega2.x / s, y: omega2.y / s });
+  }
+
+  function setHex() {
+    const basis = basisFromTau({ x: 0.5, y: Math.sqrt(3) / 2 }, getScale(omega1), Math.atan2(omega1.y, omega1.x));
+    startAnimation(basis.omega1, basis.omega2);
+  }
+
+  function setSquare() {
+    const basis = basisFromTau({ x: 0, y: 1 }, getScale(omega1), Math.atan2(omega1.y, omega1.x));
+    startAnimation(basis.omega1, basis.omega2);
+  }
+
+  function applyT() {
+    const tau = tauFromBasis(omega1, omega2);
+    const newTau = { x: tau.x + 1, y: tau.y };
+    const basis = basisFromTau(newTau, getScale(omega1), Math.atan2(omega1.y, omega1.x));
+    startAnimation(basis.omega1, basis.omega2);
+  }
+
+  function applyS() {
+    const tau = tauFromBasis(omega1, omega2);
+    const norm2 = tau.x * tau.x + tau.y * tau.y;
+    if (norm2 < 1e-12) return;
+    const newTau = normalizeTau({ x: -tau.x / norm2, y: tau.y / norm2 });
+    const basis = basisFromTau(newTau, getScale(omega1), Math.atan2(omega1.y, omega1.x));
+    startAnimation(basis.omega1, basis.omega2);
+  }
 
   // ── Viewport geometry ─────────────────────────────────────────────
   // Visible τ region: Re ∈ [-RANGE, RANGE], Im ∈ [0, RANGE]
@@ -73,7 +151,7 @@
   }
 
   // ── Modular background ────────────────────────────────────────────
-  let modularFunc: ModularFunc | "none" = $state("none");
+  let modularFunc: ModularFunc | "none" = $state("j");
 
   let glW = $derived(Math.round(tauTileSize));
   let glH = $derived(Math.round(tauTileSize * 3 / 4));  // 4:3 aspect
@@ -291,11 +369,11 @@
   <div class="tau-label">{tauLabel}</div>
 
   <div class="tau-buttons">
-    <button onclick={setSquare}>Square</button>
-    <button onclick={setHex}>Hexagonal</button>
-  </div>
-  <div class="tau-buttons">
-    <button onclick={resetScale}>Scale = 1</button>
+    <button title="Square lattice (τ = i)" onclick={setSquare}>i</button>
+    <button title="Hexagonal lattice (τ = e^(iπ/3))" onclick={setHex}>e<sup>iπ/3</sup></button>
+    <button title="Normalize scale to |ω₁| = 1" onclick={resetScale}>|ω₁| = 1</button>
+    <button title="Apply T generator: τ ↦ τ + 1" onclick={applyT}>τ + 1</button>
+    <button title="Apply S generator: τ ↦ −1/τ" onclick={applyS}>−1/τ</button>
   </div>
 
   <label class="inline-label">
@@ -353,7 +431,7 @@
 
   .tau-buttons {
     display: flex;
-    gap: 6px;
+    gap: 4px;
   }
 
   button {
@@ -361,13 +439,17 @@
     background: rgba(255, 150, 60, 0.08);
     border: 1px solid rgba(255, 150, 60, 0.25);
     color: rgba(255, 200, 150, 0.75);
-    padding: 4px 0;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    padding: 3px 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0.02em;
     cursor: pointer;
-    font-family: inherit;
+    font-family: 'Courier New', monospace;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   button:hover {
     background: rgba(255, 150, 60, 0.18);

@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
+## 2026-04-04 (cont.)
+
+### Added
+- **Animated τ transitions:** Square, Hexagonal, and |ω₁| = 1 buttons now animate smoothly (400ms cubic-in-out).
+- **Modular group generator buttons:** Added τ + 1 and −1/τ buttons to explore modular group orbits.
+
+### Changed
+- **τ picker buttons redesigned:** Consolidated into a single compact row with mathematical labels (i, e^(iπ/3), |ω₁| = 1, τ + 1, −1/τ) using monospace font and tooltips.
+- **τ picker background default:** Changed from "None" to "j(τ)" for richer visual context.
+
+---
+
 ## 2026-04-04
 
 ### Added
