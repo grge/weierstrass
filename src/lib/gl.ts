@@ -1,6 +1,6 @@
 import type { GLResources, RenderParams } from "./types";
 import quadVertSrc from "./shaders/quad.vert?raw";
-import tileFrag from "./shaders/tile.frag?raw";
+import tileExprFrag from "./shaders/tile_expr.frag?raw";
 import screenFrag from "./shaders/screen.frag?raw";
 import complexGlsl from "./shaders/complex.glsl?raw";
 import colourGlsl from "./shaders/colour.glsl?raw";
@@ -45,8 +45,53 @@ function bindQuad(gl: WebGLRenderingContext, buffer: WebGLBuffer, attrib: number
   gl.vertexAttribPointer(attrib, 2, gl.FLOAT, false, 0, 0);
 }
 
-export function createResources(gl: WebGLRenderingContext, tileSize: number): GLResources {
-  const textureProgram = makeProgram(gl, quadVertSrc, assembleShader(tileFrag));
+/**
+ * Generate a tile shader with an injected expression body.
+ * Replaces the EXPR_BODY marker with the compiled expression.
+ */
+export function generateExpressionShader(glslBody: string): string {
+  return assembleShader(tileExprFrag.replace("/*__EXPR_BODY__*/", `return ${glslBody};`));
+}
+
+/**
+ * Compile and update the tile shader with a new expression.
+ * Returns success on compilation and uniform setup, or an error on failure.
+ * On error, the tile shader is not updated and continues rendering with the previous expression.
+ */
+export function compileExpressionProgram(
+  r: GLResources,
+  glslBody: string
+): { ok: true } | { ok: false; error: string } {
+  const { gl } = r;
+  const src = generateExpressionShader(glslBody);
+
+  try {
+    const newProgram = makeProgram(gl, quadVertSrc, src);
+
+    // Replace previous tile shader
+    gl.deleteProgram(r.textureProgram);
+
+    r.textureProgram = newProgram;
+    r.uniforms.texture = {
+      tau: uniform(gl, newProgram, "u_tau"),
+      mode: uniform(gl, newProgram, "u_mode"),
+      halo: uniform(gl, newProgram, "u_halo"),
+      terms: uniform(gl, newProgram, "u_terms"),
+      g2: uniform(gl, newProgram, "u_g2"),
+      g3: uniform(gl, newProgram, "u_g3"),
+    };
+
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
+
+
+export function createResources(gl: WebGL2RenderingContext, tileSize: number): GLResources {
+  // Create tile shader with default expression (wp)
+  const tileProgram = makeProgram(gl, quadVertSrc, generateExpressionShader("v_wp"));
   const screenProgram = makeProgram(gl, quadVertSrc, screenFrag);
 
   const quadBuffer = gl.createBuffer()!;
@@ -72,22 +117,24 @@ export function createResources(gl: WebGLRenderingContext, tileSize: number): GL
 
   return {
     gl,
-    textureProgram,
+    textureProgram: tileProgram,
     screenProgram,
     quadBuffer,
     textureFramebuffer,
     tileTexture,
     tileSize,
     attribs: {
-      textureApos: gl.getAttribLocation(textureProgram, "a_pos"),
+      textureApos: gl.getAttribLocation(tileProgram, "a_pos"),
       screenApos: gl.getAttribLocation(screenProgram, "a_pos"),
     },
     uniforms: {
       texture: {
-        tau: uniform(gl, textureProgram, "u_tau"),
-        mode: uniform(gl, textureProgram, "u_mode"),
-        halo: uniform(gl, textureProgram, "u_halo"),
-        terms: uniform(gl, textureProgram, "u_terms"),
+        tau: uniform(gl, tileProgram, "u_tau"),
+        mode: uniform(gl, tileProgram, "u_mode"),
+        halo: uniform(gl, tileProgram, "u_halo"),
+        terms: uniform(gl, tileProgram, "u_terms"),
+        g2: uniform(gl, tileProgram, "u_g2"),
+        g3: uniform(gl, tileProgram, "u_g3"),
       },
       screen: {
         tile: uniform(gl, screenProgram, "u_tile"),
@@ -124,6 +171,8 @@ export function render(r: GLResources, p: RenderParams): void {
   gl.uniform1i(r.uniforms.texture.mode, p.mode);
   gl.uniform1f(r.uniforms.texture.halo, p.halo);
   gl.uniform1i(r.uniforms.texture.terms, Math.max(1, Math.min(20, Math.round(p.terms))));
+  gl.uniform1f(r.uniforms.texture.g2, 0.0);
+  gl.uniform1f(r.uniforms.texture.g3, 0.0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);

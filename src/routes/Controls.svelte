@@ -36,8 +36,8 @@
     viewMode: ViewMode;
     colorMode: ColorMode;
     tileUpdatesPerSec?: number;
-    tauTileSize?: number;
-    tauTerms?: number;
+    tauTileSize: number;
+    tauTerms: number;
   } = $props();
 </script>
 
@@ -97,8 +97,8 @@
       Fundamental cell
     </label>
 
-    <label class="overlay-row">
-      <input type="checkbox" bind:checked={showSpecialPoints} />
+    <label class="overlay-row disabled" title="Temporarily unavailable for custom expressions">
+      <input type="checkbox" bind:checked={showSpecialPoints} disabled />
       <svg class="swatch" viewBox="0 0 28 14" fill="none">
         <line x1="3" y1="3" x2="9" y2="9" stroke="rgba(255,80,80,0.9)" stroke-width="1.5"/>
         <line x1="9" y1="3" x2="3" y2="9" stroke="rgba(255,80,80,0.9)" stroke-width="1.5"/>
@@ -265,6 +265,14 @@
     opacity: 0.3;
     cursor: not-allowed;
     pointer-events: none;
+  }
+  .overlay-row.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .overlay-row.disabled input {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
   .swatch {
     width: 28px;

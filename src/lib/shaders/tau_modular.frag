@@ -1,5 +1,8 @@
+#version 300 es
 precision highp float;
-varying vec2 v_uv;
+
+in vec2 v_uv;
+layout(location = 0) out vec4 out_color;
 
 uniform int   u_func;    // 0=j, 1=delta, 2=e4, 3=e6
 uniform int   u_mode;    // colour palette index (matches tile.frag modes)
@@ -67,7 +70,7 @@ void main() {
 
   // Fade/mask near the real axis where q-series converges poorly
   if (ty < 0.01) {
-    gl_FragColor = vec4(0.08, 0.04, 0.02, 1.0);
+    out_color = vec4(0.08, 0.04, 0.02, 1.0);
     return;
   }
 
@@ -101,5 +104,5 @@ void main() {
   float fade = smoothstep(0.01, 0.08, ty);
   color = mix(vec3(0.08, 0.04, 0.02), color, fade);
 
-  gl_FragColor = vec4(color, 1.0);
+  out_color = vec4(color, 1.0);
 }

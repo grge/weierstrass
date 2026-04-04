@@ -2,7 +2,9 @@
   import { onMount } from "svelte";
   import Viewport from "./Viewport.svelte";
   import Controls from "./Controls.svelte";
+  import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
+  import { compileExpression } from "$lib/expression/compile";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
 
   let omega1: Vec2 = $state({ x: 1, y: 0 });
@@ -24,6 +26,12 @@
   let tileUpdatesPerSec: number = $state(0);
   let tauTileSize: number = $state(400);
   let tauTerms: number = $state(20);
+
+  // ── Expression engine state ───────────────────────────────────────────────
+  let expr: string = $state("wp");
+  let exprStatus: "ok" | "error" = $state("ok");
+  let exprError: string = $state("");
+  let exprGlslBody: string = $state("");  // cached compiled GLSL body
 
   // ── URL state ─────────────────────────────────────────────────────────────
 
@@ -78,6 +86,7 @@
     p.set("markers", showSpecialPoints ? "1" : "0");
     p.set("glow", showHalo ? "1" : "0");
     p.set("omega", showOmega ? "1" : "0");
+    if (expr !== "wp") p.set("expr", expr);
     return `?${p.toString()}`;
   }
 
@@ -112,6 +121,7 @@
     showSpecialPoints = bool("markers", false);
     showHalo = bool("glow", false);
     showOmega = bool("omega", true);
+    expr = p.get("expr") ?? "wp";
   }
 
   let _skipNextWrite = false;
@@ -128,7 +138,7 @@
   $effect(() => {
     void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
           halo, viewMode, tileSize, terms, tauTileSize, tauTerms, showGrid, showLattice, showCell,
-          showSpecialPoints, showHalo, showOmega];
+          showSpecialPoints, showHalo, showOmega, expr];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
     const qs = encodeState();
     if (window.location.search !== qs) history.replaceState(null, '', qs);
@@ -164,7 +174,24 @@
     showCell = true;
     showSpecialPoints = false;
     showOmega = true;
+    expr = "wp";
   }
+
+  // ── Expression compilation effect ───────────────────────────────────────────
+  // Always compile expression (even default "wp") to GLSL body
+  $effect(() => {
+    expr;  // reactive dependency
+    const result = compileExpression(expr);
+    if (result.ok) {
+      exprStatus = "ok";
+      exprError = "";
+      exprGlslBody = result.glslBody;
+    } else {
+      exprStatus = "error";
+      exprError = result.error;
+      // Keep previous exprGlslBody on error so rendering continues
+    }
+  });
 </script>
 
 <svelte:head>
@@ -191,13 +218,12 @@
       {showSpecialPoints}
       {showHalo}
       bind:tileUpdatesPerSec
+      {expr}
+      {exprStatus}
+      {exprError}
+      {exprGlslBody}
+      onExprChange={(newExpr) => (expr = newExpr)}
     />
-
-    <!-- View mode toggle pill -->
-    <div class="view-toggle" class:sidebar-open={sidebarOpen}>
-      <button class:active={viewMode === "plane"} onclick={() => (viewMode = "plane")}>&#8450;</button>
-      <button class:active={viewMode === "torus"} onclick={() => (viewMode = "torus")}>&#8450;/&#923;</button>
-    </div>
 
     <aside class="sidebar" class:open={sidebarOpen}>
       <div class="sidebar-header">
@@ -280,43 +306,6 @@
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  .view-toggle {
-    position: absolute;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    border: 1px solid rgba(255,150,60,0.35);
-    overflow: hidden;
-    z-index: 20;
-    transition: left 0.2s ease;
-  }
-  .view-toggle.sidebar-open {
-    left: calc(50% - 140px); /* shift left when sidebar is open */
-  }
-  .view-toggle button {
-    background: rgba(18,13,11,0.82);
-    border: none;
-    color: rgba(255,200,150,0.55);
-    padding: 5px 16px;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: 0.04em;
-    backdrop-filter: blur(4px);
-  }
-  .view-toggle button + button {
-    border-left: 1px solid rgba(255,150,60,0.35);
-  }
-  .view-toggle button.active {
-    background: rgba(255,150,60,0.18);
-    color: rgba(255,220,180,1);
-  }
-  .view-toggle button:hover:not(.active) {
-    background: rgba(255,150,60,0.08);
-    color: rgba(255,200,150,0.85);
   }
 
   .sidebar {

@@ -7,7 +7,7 @@ export type ModularFunc = "j" | "delta" | "e4" | "e6";
 const FUNC_INDEX: Record<ModularFunc, number> = { j: 0, delta: 1, e4: 2, e6: 3 };
 
 type ModularResources = {
-  gl: WebGLRenderingContext;
+  gl: WebGL2RenderingContext;
   program: WebGLProgram;
   quadBuffer: WebGLBuffer;
   attribApos: number;
@@ -20,7 +20,7 @@ type ModularResources = {
   uTerms: WebGLUniformLocation;
 };
 
-function makeShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
+function makeShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const s = gl.createShader(type)!;
   gl.shaderSource(s, src);
   gl.compileShader(s);
@@ -29,7 +29,7 @@ function makeShader(gl: WebGLRenderingContext, type: number, src: string): WebGL
   return s;
 }
 
-function makeProgram(gl: WebGLRenderingContext, vs: string, fs: string): WebGLProgram {
+function makeProgram(gl: WebGL2RenderingContext, vs: string, fs: string): WebGLProgram {
   const p = gl.createProgram()!;
   gl.attachShader(p, makeShader(gl, gl.VERTEX_SHADER, vs));
   gl.attachShader(p, makeShader(gl, gl.FRAGMENT_SHADER, fs));
@@ -45,7 +45,7 @@ function u(gl: WebGLRenderingContext, p: WebGLProgram, name: string): WebGLUnifo
   return loc;
 }
 
-export function createModularResources(gl: WebGLRenderingContext): ModularResources {
+export function createModularResources(gl: WebGL2RenderingContext): ModularResources {
   const program = makeProgram(gl, quadVertSrc, assembleShader(tauModularFrag));
   const quadBuffer = gl.createBuffer()!;
   gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);

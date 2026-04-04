@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { createResources, destroyResources, render } from "$lib/gl";
+  import ExpressionOverlay from "./ExpressionOverlay.svelte";
+  import { createResources, destroyResources, render, compileExpressionProgram } from "$lib/gl";
   import { worldToScreen, screenToWorld, clamp, findWeierstrassZeros } from "$lib/math";
   import { toLatticeCoords } from "$lib/lattice";
   import type { Vec2, DragState, GLResources, RenderMode, ViewMode } from "$lib/types";
@@ -21,14 +22,24 @@
     showSpecialPoints,
     showHalo,
     showOmega,
-    viewMode = "plane",
+    viewMode = $bindable("plane"),
     tileUpdatesPerSec = $bindable(0),
+    expr = "wp",
+    exprStatus = "ok" as "ok" | "error",
+    exprError = "",
+    exprGlslBody = "",
+    onExprChange = (e: string) => {},
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
     tileUpdatesPerSec?: number;
+    expr?: string;
+    exprStatus?: "ok" | "error";
+    exprError?: string;
+    exprGlslBody?: string;
+    onExprChange?: (expr: string) => void;
   } = $props();
 
   let container: HTMLDivElement;
@@ -49,16 +60,25 @@
 
   $effect(() => {
     const ts = tileSize;
-    if (!glCanvas) return;
-    const gl = glCanvas.getContext("webgl", {
+    if (!glCanvas) {
+      return;
+    }
+    const gl = glCanvas.getContext("webgl2", {
       antialias: true, premultipliedAlpha: false, preserveDrawingBuffer: false,
-    });
-    if (!gl) return;
+    }) as WebGL2RenderingContext | null;
+    if (!gl) {
+      return;
+    }
     if (resources) destroyResources(resources);
     try {
       resources = createResources(gl, ts);
       untrack(() => { resourceVersion++; });
-    } catch {
+      // After creating new resources, recompile tile shader with current expression
+      if (exprGlslBody && resources) {
+        compileExpressionProgram(resources, exprGlslBody);
+      }
+    } catch (err) {
+      console.error("Failed to create resources:", err);
       resources = null;
     }
     return () => { if (resources) { destroyResources(resources); resources = null; } };
@@ -68,6 +88,18 @@
     const nextZeros = findWeierstrassZeros(omega1, omega2, prevZerosRef, terms);
     prevZerosRef = nextZeros;
     zeros = nextZeros;
+  });
+
+  // ── Tile shader compilation effect ────────────────────────────────────
+  // Compile tile shader whenever the expression GLSL body changes
+  $effect(() => {
+    exprGlslBody;  // dependency
+    if (!resources || !exprGlslBody) return;
+
+    const result = compileExpressionProgram(resources, exprGlslBody);
+    if (!result.ok) {
+      // On error, tile shader is not updated. User sees error message and can correct.
+    }
   });
 
   // ── Combined render effect ───────────────────────────────────────────────
@@ -83,7 +115,12 @@
   // requires a GL re-render anyway. Revisit if overlay interactivity becomes
   // significantly more complex.
   $effect(() => {
-    if (!resources || !glCanvas || !overlayCanvas) return;
+    // Depend on exprGlslBody so expression shader changes trigger re-render
+    exprGlslBody;
+
+    if (!resources || !glCanvas || !overlayCanvas) {
+      return;
+    }
     const dpr = Math.min(devicePixelRatio ?? 1, 2);
     const w = Math.max(1, Math.floor(container.clientWidth  * dpr));
     const h = Math.max(1, Math.floor(container.clientHeight * dpr));
@@ -145,7 +182,7 @@
     ctx.save();
 
     // ── a) complex grid ──────────────────────────────────────────────────────
-    if (showGrid) {
+    if (showGrid && viewMode === "plane") {
       const tl = screenToWorld(0, 0, w, h, pan.x, pan.y, zoom);
       const br = screenToWorld(w, h, w, h, pan.x, pan.y, zoom);
       const xMin = Math.ceil(Math.min(tl.x, br.x));
@@ -177,7 +214,7 @@
     }
 
     // ── b) cell lattice grid ─────────────────────────────────────────────────
-    if (showLattice) {
+    if (showLattice && viewMode === "plane") {
       const { mMin, mMax, nMin, nMax } = visibleLatticeRange(w, h);
       ctx.strokeStyle = "rgba(255, 215, 90, 0.28)";
       ctx.lineWidth = dpr;
@@ -195,7 +232,7 @@
     }
 
     // ── c) fundamental cell outline ──────────────────────────────────────────
-    if (showCell) {
+    if (showCell && viewMode === "plane") {
       const origin = ws(0, 0, w, h);
       const p1 = ws(omega1.x, omega1.y, w, h);
       const p2 = ws(omega1.x + omega2.x, omega1.y + omega2.y, w, h);
@@ -277,7 +314,7 @@
     }
 
     // ── e) ω vectors ─────────────────────────────────────────────────────────
-    if (showOmega) {
+    if (showOmega && viewMode === "plane") {
       const origin = ws(0, 0, w, h);
       const w1s = ws(omega1.x, omega1.y, w, h);
       const w2s = ws(omega2.x, omega2.y, w, h);
@@ -456,6 +493,13 @@
 >
   <canvas bind:this={glCanvas}      class="gl-canvas"></canvas>
   <canvas bind:this={overlayCanvas} class="overlay-canvas"></canvas>
+  <ExpressionOverlay
+    {expr}
+    status={exprStatus}
+    error={exprError}
+    onExprChange={onExprChange}
+    bind:viewMode
+  />
   <div class="hint">
     <span>drag ω₁ or ω₂ · pan background</span>
     <span>scroll to zoom</span>

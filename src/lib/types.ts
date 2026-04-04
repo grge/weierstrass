@@ -1,7 +1,7 @@
 export type Vec2 = { x: number; y: number };
 
 export type GLResources = {
-  gl: WebGLRenderingContext;
+  gl: WebGL2RenderingContext;
   textureProgram: WebGLProgram;
   screenProgram: WebGLProgram;
   quadBuffer: WebGLBuffer;
@@ -18,6 +18,8 @@ export type GLResources = {
       mode: WebGLUniformLocation;
       halo: WebGLUniformLocation;
       terms: WebGLUniformLocation;
+      g2: WebGLUniformLocation;
+      g3: WebGLUniformLocation;
     };
     screen: {
       tile: WebGLUniformLocation;

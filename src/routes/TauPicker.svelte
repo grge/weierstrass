@@ -13,9 +13,9 @@
     omega2 = $bindable(),
     colorMode = 2,
     showGrid = false,
-    tauTileSize = 400,
-    tauTerms = 20,
-  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize?: number; tauTerms?: number } = $props();
+    tauTileSize = $bindable(400),
+    tauTerms = $bindable(20),
+  }: { omega1: Vec2; omega2: Vec2; colorMode?: RenderMode; showGrid?: boolean; tauTileSize: number; tauTerms: number } = $props();
 
   const MIN_TAU_IM = 0.05;
 
@@ -82,11 +82,11 @@
   let glResources: ReturnType<typeof createModularResources> | null = null;
 
   onMount(() => {
-    const gl = glCanvas.getContext("webgl", {
+    const gl = glCanvas.getContext("webgl2", {
       antialias: false,
       premultipliedAlpha: false,
       preserveDrawingBuffer: false,
-    });
+    }) as WebGL2RenderingContext | null;
     if (!gl) return;
     try {
       glResources = createModularResources(gl);

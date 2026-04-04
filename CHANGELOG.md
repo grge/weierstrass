@@ -6,6 +6,14 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+### Added
+- **Expression engine (M1):** Users can now enter arbitrary elliptic function expressions in a top-center editor. Supports identifiers (`wp`, `wpp`, `g2`, `g3`), operators (`+ - * / ( )`), and integer powers (`^k`). Expressions are compiled to GLSL and rendered in real time. Preset dropdown with example expressions. Parse errors shown inline with tooltip.
+- **WebGL 2.0 migration:** Upgraded from WebGL 1.0 to WebGL 2.0 (GLSL ES 3.0) for modern syntax and bitwise operators (used for efficient expression evaluation).
+
+### Changed
+- **Unified tile shader:** Expression engine is now the primary rendering path. The default expression `wp` renders the standard Weierstrass function. No separate hardcoded mode; all rendering uses the same compilation pipeline.
+- **Pole/zero markers temporarily disabled:** Calculating zeros of arbitrary expressions requires symbolic differentiation (deferred to M3+). Markers are disabled for now.
+
 ---
 
 ## 2026-04-03

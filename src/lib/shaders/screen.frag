@@ -1,5 +1,8 @@
+#version 300 es
 precision highp float;
-varying vec2 v_uv;
+
+in vec2 v_uv;
+layout(location = 0) out vec4 out_color;
 
 uniform sampler2D u_tile;
 uniform vec2 u_resolution;
@@ -33,6 +36,6 @@ void main() {
     vec2 z = worldFromScreen(gl_FragCoord.xy, u_resolution, u_pan, u_zoom);
     uv = fract(solveLatticeCoords(z, u_omega1, u_omega2));
   }
-  vec3 color = texture2D(u_tile, uv).rgb;
-  gl_FragColor = vec4(color, 1.0);
+  vec3 color = texture(u_tile, uv).rgb;
+  out_color = vec4(color, 1.0);
 }

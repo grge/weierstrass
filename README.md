@@ -9,11 +9,13 @@ Interactive domain-colouring visualiser for the Weierstrass elliptic function, w
 ## What it shows
 
 ### Elliptic function view (main canvas)
-Domain colouring of $\wp(z; \omega_1, \omega_2)$ across the complex plane. Hue encodes the argument of $\wp(z)$, brightness encodes its magnitude. The lattice vectors $\omega_1$ and $\omega_2$ are draggable — reshaping them in real time updates the rendering, the pole/zero markers, and the $\tau$ display simultaneously.
+Domain colouring of user-defined elliptic function expressions across the complex plane. By default shows $\wp(z; \omega_1, \omega_2)$, but users can enter any expression using `wp`, `wpp` (the derivative), `g2`, `g3`, and operators `+ - * / ( ) ^k`.
+
+Hue encodes the argument of the result, brightness encodes its magnitude. The lattice vectors $\omega_1$ and $\omega_2$ are draggable — reshaping them in real time updates the rendering and the $\tau$ display simultaneously.
 
 Four colour modes: **Classic** (Wegert-style conformal rings), **Ember** (warm cosine palette), **Dusk** (pure phase portrait), **Contours** (magnitude/argument level sets).
 
-Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers, pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing $\wp$ as a function on $\mathbb{C}/\Lambda$.
+Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers (for the base ℘ function), pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing the expression as a function on $\mathbb{C}/\Lambda$.
 
 ### Modular background ($\tau$ picker)
 The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \mathrm{Im}(\tau) > 0\}$:
@@ -49,15 +51,22 @@ $$\Delta(\tau) = \frac{E_4^3 - E_6^2}{1728}, \qquad j(\tau) = \frac{E_4^3}{\Delt
 
 ## Rendering
 
-**$\wp$ renderer (two-pass WebGL):**
-- Pass 1 renders $\wp(z)$ for one fundamental cell to an offscreen texture
+**Expression renderer (two-pass WebGL 2.0):**
+- Pass 1 evaluates the user-defined expression for one fundamental cell to an offscreen texture
 - Pass 2 tiles this texture across the visible screen by mapping world → lattice coordinates mod 1
-- This evaluates the lattice sum once per tile pixel rather than per screen pixel
+- Expressions are compiled to GLSL at runtime; the default expression `wp` renders the Weierstrass function
+- This architecture evaluates the lattice sum once per tile pixel rather than per screen pixel
 
 **Modular renderer (single-pass WebGL):**
 - Maps each fragment to $\tau = x + iy$ in the upper half-plane
 - Evaluates the $q$-series directly in GLSL
 - Fades near the real axis where $|q| \to 1$ and convergence degrades
+
+**Expression compiler (JavaScript → GLSL):**
+- Parser and AST builder validate syntax and allowed identifiers
+- GLSL code generator converts expressions to optimized shader code
+- Compilation happens on-demand when the user changes the expression
+- Failed compilations are caught and reported inline; rendering continues with the previous expression
 
 Shared GLSL: complex arithmetic helpers and all four colour palette functions live in `complex.glsl` and `colour.glsl`, imported by both renderers.
 
@@ -67,24 +76,30 @@ Shared GLSL: complex arithmetic helpers and all four colour palette functions li
 
 ```
 src/lib/
-  math.ts          — wp, wp', Newton zero-finding, coordinate transforms
-  lattice.ts       — lattice arithmetic, τ↔basis conversion, canonicalization
-  gl.ts            — WebGL resource lifecycle, two-pass wp renderer
-  modular_gl.ts    — single-pass modular function renderer
-  types.ts         — shared TypeScript types
+  math.ts                    — wp, wp', Newton zero-finding, coordinate transforms
+  lattice.ts                 — lattice arithmetic, τ↔basis conversion, canonicalization
+  gl.ts                      — WebGL 2.0 resource lifecycle, expression compilation, two-pass rendering
+  modular_gl.ts              — single-pass modular function renderer
+  types.ts                   — shared TypeScript types
+  expression/
+    ast.ts                   — expression AST node types
+    parser.ts                — tokenizer and recursive descent parser
+    codegen_glsl.ts          — AST → GLSL code generation
+    compile.ts               — end-to-end compilation pipeline with error reporting
   shaders/
-    quad.vert      — shared vertex shader
-    tile.frag      — wp evaluation + domain colouring (uses shared snippets)
-    screen.frag    — tiling / torus mapping pass
-    tau_modular.frag — modular q-series evaluation (uses shared snippets)
-    complex.glsl   — complex arithmetic (shared)
-    colour.glsl    — HSV, cosine palette, four colour modes (shared)
+    quad.vert                — shared vertex shader
+    tile_expr.frag           — expression evaluation + domain colouring (uses shared snippets)
+    screen.frag              — tiling / torus mapping pass
+    tau_modular.frag         — modular q-series evaluation (uses shared snippets)
+    complex.glsl             — complex arithmetic helpers (shared)
+    colour.glsl              — HSV, cosine palette, four colour modes (shared)
 
 src/routes/
-  +page.svelte     — application state, URL serialisation
-  Viewport.svelte  — main canvas, pan/zoom/drag interaction, overlays
-  Controls.svelte  — sidebar UI
-  TauPicker.svelte — τ picker with modular background canvas
+  +page.svelte               — application state, URL serialisation, expression compilation
+  Viewport.svelte            — main canvas, pan/zoom/drag interaction, overlays
+  ExpressionOverlay.svelte   — expression editor and view mode toggle
+  Controls.svelte            — sidebar UI
+  TauPicker.svelte           — τ picker with modular background canvas
 ```
 
 ---
@@ -92,8 +107,9 @@ src/routes/
 ## Technology
 
 - **SvelteKit** — Svelte 5 runes for reactive state
-- **WebGL 1.0** — maximum browser compatibility
+- **WebGL 2.0** — modern browser support, GLSL ES 3.0
 - **TypeScript** — light typing, function signatures and tagged unions
+- Expression compiler — parser, AST, and GLSL code generation
 - No external math or rendering libraries
 
 ---
