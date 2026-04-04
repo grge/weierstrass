@@ -17,6 +17,17 @@ Four colour modes: **Classic** (Wegert-style conformal rings), **Ember** (warm c
 
 Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers (for the base ℘ function), pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing the expression as a function on $\mathbb{C}/\Lambda$.
 
+### Elliptic curve view (sidebar panel)
+Real algebraic curve $y^2 = 4x^3 - g_2 x - g_3$ associated with the current lattice. The curve coefficients $g_2$ and $g_3$ (Weierstrass invariants) are computed from the lattice basis and updated in real time as you reshape $\omega_1$ and $\omega_2$.
+
+The panel displays:
+- Both branches ($y = \pm\sqrt{\text{RHS}}$) of the curve, drawn with root-aware parametrization for smooth visual closure at the three branch points
+- Root markers (orange circles) on the x-axis where the cubic vanishes
+- Automatic viewport scaling that includes critical points of the cubic, ensuring the full curve character is visible (e.g., "bumps" in the 1-root case, the oval and unbounded tail in the 3-root case)
+- Smooth camera animation as $\tau$ changes, using log-scale interpolation to avoid zoom artifacts
+
+This view provides a complementary perspective: while the main canvas shows the complex-plane behaviour of $\wp(z)$, the curve panel shows the algebraic relation that $(\wp(z), \wp'(z))$ satisfies on its base field.
+
 ### Modular background ($\tau$ picker)
 The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \mathrm{Im}(\tau) > 0\}$:
 
@@ -78,6 +89,7 @@ Shared GLSL: complex arithmetic helpers and all four colour palette functions li
 src/lib/
   math.ts                    — wp, wp', Newton zero-finding, coordinate transforms
   lattice.ts                 — lattice arithmetic, τ↔basis conversion, canonicalization
+  curve.ts                   — elliptic curve geometry: g₂/g₃ computation, cubic roots, real interval sampling
   gl.ts                      — WebGL 2.0 resource lifecycle, expression compilation, two-pass rendering
   modular_gl.ts              — single-pass modular function renderer
   types.ts                   — shared TypeScript types
@@ -99,6 +111,7 @@ src/routes/
   Viewport.svelte            — main canvas, pan/zoom/drag interaction, overlays
   ExpressionOverlay.svelte   — expression editor and view mode toggle
   Controls.svelte            — sidebar UI
+  CurveView.svelte           — elliptic curve rendering with smooth camera animation
   TauPicker.svelte           — τ picker with modular background canvas
 ```
 

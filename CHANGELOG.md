@@ -4,9 +4,11 @@ All notable changes to this project will be documented here.
 
 ---
 
-## [Unreleased]
+## 2026-04-04
 
 ### Added
+- **Elliptic curve view (M1+M2):** New sidebar panel displaying the real Weierstrass curve $y^2 = 4x^3 - g_2 x - g_3$ derived from the current lattice. Curve branches are sampled using root-aware parametrization (sin² for bounded ovals, u²/(1-u²) for unbounded tails) ensuring smooth closure at branch points. Shows both positive and negative branches, root markers on the x-axis, and automatically computes viewport bounds from both roots and critical points. Camera animates smoothly via requestAnimationFrame with log-scale interpolation. Completes M1 (curve + roots static display) and M2 (architecture for future linked point selection).
+- **Elliptic invariants (g₂, g₃):** Weierstrass invariants $g_2$ and $g_3$ are now computed in JavaScript from the lattice basis via double lattice sums (60·Σw^{-4} and 140·Σw^{-6}). Values flow into both the elliptic curve view and the tile shader (replacing previous hardcoded zeros). Enables real curve geometry to adapt to lattice shape changes.
 - **Expression engine (M1):** Users can now enter arbitrary elliptic function expressions in a top-center editor. Supports identifiers (`wp`, `wpp`, `g2`, `g3`), operators (`+ - * / ( )`), and integer powers (`^k`). Expressions are compiled to GLSL and rendered in real time. Preset dropdown with example expressions. Parse errors shown inline with tooltip.
 - **WebGL 2.0 migration:** Upgraded from WebGL 1.0 to WebGL 2.0 (GLSL ES 3.0) for modern syntax and bitwise operators (used for efficient expression evaluation).
 

@@ -4,13 +4,13 @@ import { fromLatticeCoords, reduceToFundamental } from "./lattice";
 // ── low-level helpers ──────────────────────────────────────────────────────
 
 /** (a+bi)^{-2} as [re, im] */
-function inv2(ax: number, ay: number): [number, number] {
+export function inv2(ax: number, ay: number): [number, number] {
   const d2 = (ax*ax + ay*ay) ** 2 || 1e-30;
   return [(ax*ax - ay*ay) / d2, -2*ax*ay / d2];
 }
 
 /** (a+bi)^{-3} as [re, im] */
-function inv3(ax: number, ay: number): [number, number] {
+export function inv3(ax: number, ay: number): [number, number] {
   const d3 = (ax*ax + ay*ay) ** 3 || 1e-30;
   return [(ax*ax*ax - 3*ax*ay*ay) / d3, (-3*ax*ax*ay + ay*ay*ay) / d3];
 }

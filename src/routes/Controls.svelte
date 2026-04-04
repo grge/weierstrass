@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
   import TauPicker from "./TauPicker.svelte";
+  import CurveView from "./CurveView.svelte";
 
   const COLOR_MODE_INDEX: Record<ColorMode, RenderMode> = {
     classic: 0, ember: 1, dusk: 2, contours: 3,
@@ -22,6 +23,8 @@
     tileUpdatesPerSec = 0,
     tauTileSize = $bindable(400),
     tauTerms = $bindable(20),
+    g2 = 0,
+    g3 = 0,
   }: {
     omega1: Vec2;
     omega2: Vec2;
@@ -38,6 +41,8 @@
     tileUpdatesPerSec?: number;
     tauTileSize: number;
     tauTerms: number;
+    g2?: number;
+    g3?: number;
   } = $props();
 </script>
 
@@ -45,6 +50,12 @@
 <details open>
   <summary>Lattice shape (&#964;)</summary>
   <TauPicker bind:omega1 bind:omega2 colorMode={COLOR_MODE_INDEX[colorMode]} {showGrid} bind:tauTileSize bind:tauTerms />
+</details>
+
+<!-- ── Elliptic curve ───────────────────────────────── -->
+<details open>
+  <summary>Elliptic curve</summary>
+  <CurveView {g2} {g3} />
 </details>
 
 <!-- ── Domain colouring ─────────────────────────────── -->

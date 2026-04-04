@@ -5,6 +5,8 @@
   import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
   import { compileExpression } from "$lib/expression/compile";
+  import { computeG2G3 } from "$lib/curve";
+  import { wpEval, wpPrimeEval } from "$lib/math";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
 
   let omega1: Vec2 = $state({ x: 1, y: 0 });
@@ -32,6 +34,11 @@
   let exprStatus: "ok" | "error" = $state("ok");
   let exprError: string = $state("");
   let exprGlslBody: string = $state("");  // cached compiled GLSL body
+
+  // ── Curve view state ──────────────────────────────────────────────────────
+  const g2g3 = $derived(computeG2G3(omega1, omega2, terms));
+  const g2 = $derived(g2g3.g2);
+  const g3 = $derived(g2g3.g3);
 
   // ── URL state ─────────────────────────────────────────────────────────────
 
@@ -223,6 +230,8 @@
       {exprError}
       {exprGlslBody}
       onExprChange={(newExpr) => (expr = newExpr)}
+      {g2}
+      {g3}
     />
 
     <aside class="sidebar" class:open={sidebarOpen}>
@@ -278,6 +287,8 @@
         {tileUpdatesPerSec}
         bind:tauTileSize
         bind:tauTerms
+        {g2}
+        {g3}
       />
     </aside>
 

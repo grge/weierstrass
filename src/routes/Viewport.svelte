@@ -29,6 +29,8 @@
     exprError = "",
     exprGlslBody = "",
     onExprChange = (e: string) => {},
+    g2 = 0,
+    g3 = 0,
   }: {
     omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
@@ -40,6 +42,8 @@
     exprError?: string;
     exprGlslBody?: string;
     onExprChange?: (expr: string) => void;
+    g2?: number;
+    g3?: number;
   } = $props();
 
   let container: HTMLDivElement;
@@ -132,6 +136,7 @@
       halo: showHalo ? halo : 0,
       viewMode, terms,
       width: w, height: h,
+      g2, g3,
     });
     _tileRenderCount++;
 

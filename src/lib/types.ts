@@ -54,4 +54,6 @@ export type RenderParams = {
   terms: number;
   width: number;
   height: number;
+  g2: number;
+  g3: number;
 };

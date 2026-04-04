@@ -171,8 +171,8 @@ export function render(r: GLResources, p: RenderParams): void {
   gl.uniform1i(r.uniforms.texture.mode, p.mode);
   gl.uniform1f(r.uniforms.texture.halo, p.halo);
   gl.uniform1i(r.uniforms.texture.terms, Math.max(1, Math.min(20, Math.round(p.terms))));
-  gl.uniform1f(r.uniforms.texture.g2, 0.0);
-  gl.uniform1f(r.uniforms.texture.g3, 0.0);
+  gl.uniform1f(r.uniforms.texture.g2, p.g2);
+  gl.uniform1f(r.uniforms.texture.g3, p.g3);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
