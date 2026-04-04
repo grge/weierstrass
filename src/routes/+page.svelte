@@ -398,6 +398,7 @@
           mode="primary"
           {g2}
           {g3}
+          {showGrid}
         />
       {/if}
 
@@ -517,6 +518,7 @@
             isPrimary={primaryPane === "ellipticCurve"}
             {g2}
             {g3}
+            {showGrid}
           />
         {/snippet}
       </PaneCard>

@@ -222,7 +222,7 @@ export function computeAxisBounds(
     const span = Math.max(hi - lo, 1);
 
     xMin = lo - span * 0.25;
-    xMax = hi + span * 0.55;  // generous right pad to show tail start
+    xMax = hi + span * 0.75;  // extended right pad to show more of unbounded tail
 
     // Sample yMax a bit to the right of root to capture y-scale of visible tail
     const xProbe = e + span * 0.5;
@@ -237,7 +237,7 @@ export function computeAxisBounds(
     const span = Math.max(hi - lo, 1);
 
     xMin = lo - span * 0.25;
-    xMax = hi + span * 0.40;  // include start of unbounded tail
+    xMax = hi + span * 0.60;  // extended right pad to show more of unbounded tail
 
     // Sample yMax at the unbounded branch start
     const xProbe = e3 + span * 0.3;
@@ -252,4 +252,26 @@ export function computeAxisBounds(
   yMax *= 1.20;
 
   return { xMin, xMax, yMax };
+}
+
+/**
+ * Pick a grid step size from the set {0.1, 0.2, 0.5, 1, 2, 5, 10, …}
+ * such that there are at most ~maxLines lines in the given span.
+ *
+ * @param span The span of the axis (e.g., xMax - xMin)
+ * @param maxLines Target maximum number of lines (default 8)
+ */
+export function pickGridStep(span: number, maxLines = 8): number {
+  const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+  let bestStep = 0.1;
+
+  for (const step of steps) {
+    const numLines = Math.ceil(span / step);
+    if (numLines <= maxLines) {
+      bestStep = step;
+      break;
+    }
+  }
+
+  return bestStep;
 }

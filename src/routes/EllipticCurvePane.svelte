@@ -6,24 +6,26 @@
     isPrimary = false,
     g2 = 0,
     g3 = 0,
+    showGrid = false,
   }: {
     mode: "primary" | "sidebar";
     isPrimary?: boolean;
     g2?: number;
     g3?: number;
+    showGrid?: boolean;
   } = $props();
 </script>
 
 {#if mode === "primary"}
   <!-- Primary mode: full-size curve view -->
   <div class="curve-viewport">
-    <EllipticCurveView {g2} {g3} fillViewport={true} />
+    <EllipticCurveView {g2} {g3} fillViewport={true} {showGrid} />
   </div>
 {:else}
   <!-- Sidebar mode: thumbnail (hidden when promoted) -->
   {#if !isPrimary}
     <div class="curve-thumbnail">
-      <EllipticCurveView {g2} {g3} showControls={false} />
+      <EllipticCurveView {g2} {g3} showControls={false} {showGrid} />
     </div>
   {/if}
 {/if}

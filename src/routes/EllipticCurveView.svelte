@@ -5,6 +5,7 @@
     cubicRoots,
     realIntervals,
     sampleInterval,
+    pickGridStep,
   } from "$lib/curve";
   import type { Branch } from "$lib/curve";
 
@@ -13,11 +14,13 @@
     g3 = 0,
     showControls = true,
     fillViewport = false,
+    showGrid = false,
   }: {
     g2: number;
     g3: number;
     showControls?: boolean;
     fillViewport?: boolean;
+    showGrid?: boolean;
   } = $props();
 
   let container: HTMLDivElement;
@@ -34,8 +37,13 @@
   let cam: CamState = { cx: 0, sx: Math.log(4), sy: Math.log(4) };
   let target: CamState = { cx: 0, sx: Math.log(4), sy: Math.log(4) };
   let camInitialized = false;
+  let userCamera = $state(false);  // true = manual pan/zoom active, false = auto-zoom
   let rafId: number | null = null;
   let restartLoop: () => void = () => {};
+
+  // Pan/zoom state
+  let dragStart: { px: number; cx: number } | null = null;
+  const ZOOM_SPEED = 0.1;
 
   // Helper: reconstruct viewport bounds from camera state
   function camToViewport(c: CamState): { xMin: number; xMax: number; yMax: number } {
@@ -117,6 +125,9 @@
   $effect(() => {
     void [g2, g3, cssW, cssH];
 
+    // Always reset to auto-zoom when lattice shape changes, even if userCamera was active
+    userCamera = false;
+
     const bounds = computeAxisBounds(g2, g3);
     const newTarget = boundsToCam(bounds);
 
@@ -128,6 +139,156 @@
     target = newTarget;
     restartLoop();
   });
+
+  function drawAxisTicks(
+    c: CanvasRenderingContext2D,
+    xMin: number,
+    xMax: number,
+    yMax: number,
+  ) {
+    const xStep = pickGridStep(xMax - xMin);
+    const yStep = pickGridStep(2 * yMax);
+
+    const toCanvas = (wx: number, wy: number) => ({
+      x: ((wx - xMin) / (xMax - xMin)) * cssW,
+      y: ((yMax - wy) / (2 * yMax)) * cssH,
+    });
+
+    // Helper to format numbers
+    const formatValue = (step: number, val: number): string => {
+      if (step < 0.1) return val.toFixed(2);
+      if (step < 1) return val.toFixed(1);
+      return val.toFixed(0);
+    };
+
+    // Warm-white theme for ticks and labels
+    c.strokeStyle = "rgba(230, 210, 190, 0.6)";
+    c.lineWidth = 1;
+    c.fillStyle = "rgba(240, 220, 200, 0.8)";
+    c.font = "9px monospace";
+
+    const origin = toCanvas(0, 0);
+
+    // X-axis ticks and labels
+    if (origin.y >= 0 && origin.y <= cssH) {
+      const xStart = Math.ceil(xMin / xStep) * xStep;
+      for (let x = xStart; x <= xMax; x += xStep) {
+        if (Math.abs(x) < 1e-10) continue; // skip origin
+        const px = toCanvas(x, 0).x;
+        if (px >= 0 && px <= cssW) {
+          // Tick mark
+          c.beginPath();
+          c.moveTo(px, origin.y - 2);
+          c.lineTo(px, origin.y + 2);
+          c.stroke();
+
+          // Label (fade near edges)
+          const label = formatValue(xStep, x);
+          const textW = c.measureText(label).width;
+          const labelX = px - textW / 2;
+
+          // Skip label if within 6px of edge
+          if (labelX >= 6 && labelX + textW <= cssW - 6) {
+            c.textAlign = "left";
+            c.textBaseline = "top";
+            c.fillText(label, labelX, origin.y + 4);
+          }
+        }
+      }
+    }
+
+    // Y-axis ticks and labels
+    if (origin.x >= 0 && origin.x <= cssW) {
+      const yStart = Math.ceil(-yMax / yStep) * yStep;
+      for (let y = yStart; y <= yMax; y += yStep) {
+        if (Math.abs(y) < 1e-10) continue; // skip origin
+        const py = toCanvas(0, y).y;
+        if (py >= 0 && py <= cssH) {
+          // Tick mark
+          c.beginPath();
+          c.moveTo(origin.x - 2, py);
+          c.lineTo(origin.x + 2, py);
+          c.stroke();
+
+          // Label
+          const label = formatValue(yStep, y);
+          const labelY = py - 4;
+
+          // Skip label if within 6px of edge
+          if (labelY >= 6 && labelY <= cssH - 6) {
+            c.textAlign = "right";
+            c.textBaseline = "bottom";
+            c.fillText(label, origin.x - 4, labelY);
+          }
+        }
+      }
+    }
+  }
+
+  function drawGrid(
+    c: CanvasRenderingContext2D,
+    xMin: number,
+    xMax: number,
+    yMax: number,
+  ) {
+    // Grid lines at nice round intervals
+    const xStep = pickGridStep(xMax - xMin);
+    const yStep = pickGridStep(2 * yMax);
+
+    // Coordinate transform: world (x,y) → canvas pixel (cx,cy)
+    const toCanvas = (wx: number, wy: number) => ({
+      x: ((wx - xMin) / (xMax - xMin)) * cssW,
+      y: ((yMax - wy) / (2 * yMax)) * cssH,
+    });
+
+    // Interior grid lines — warm-white
+    c.strokeStyle = "rgba(220, 200, 180, 0.1)";
+    c.lineWidth = 1;
+
+    // Vertical grid lines
+    const xStart = Math.ceil(xMin / xStep) * xStep;
+    for (let x = xStart; x <= xMax; x += xStep) {
+      if (Math.abs(x) < 1e-10) continue; // skip x=0, will draw as axis
+      const px = toCanvas(x, 0).x;
+      if (px >= 0 && px <= cssW) {
+        c.beginPath();
+        c.moveTo(px, 0);
+        c.lineTo(px, cssH);
+        c.stroke();
+      }
+    }
+
+    // Horizontal grid lines
+    const yStart = Math.ceil(-yMax / yStep) * yStep;
+    for (let y = yStart; y <= yMax; y += yStep) {
+      if (Math.abs(y) < 1e-10) continue; // skip y=0, will draw as axis
+      const py = toCanvas(0, y).y;
+      if (py >= 0 && py <= cssH) {
+        c.beginPath();
+        c.moveTo(0, py);
+        c.lineTo(cssW, py);
+        c.stroke();
+      }
+    }
+
+    // Axis lines (x=0, y=0) — warm-white
+    c.strokeStyle = "rgba(220, 200, 180, 0.3)";
+    c.lineWidth = 1;
+
+    const origin = toCanvas(0, 0);
+    if (origin.y >= 0 && origin.y <= cssH) {
+      c.beginPath();
+      c.moveTo(0, origin.y);
+      c.lineTo(cssW, origin.y);
+      c.stroke();
+    }
+    if (origin.x >= 0 && origin.x <= cssW) {
+      c.beginPath();
+      c.moveTo(origin.x, 0);
+      c.lineTo(origin.x, cssH);
+      c.stroke();
+    }
+  }
 
   function drawCurve() {
     if (!canvas || cssW <= 0 || cssH <= 0) return;
@@ -159,28 +320,33 @@
       y: ((yMax - wy) / (2 * yMax)) * cssH,
     });
 
-    // ── Axes ──────────────────────────────────────────────────────────────
+    // ── Grid (if enabled) ──────────────────────────────────────────────────
+    if (showGrid) {
+      drawGrid(c, xMin, xMax, yMax);
+      drawAxisTicks(c, xMin, xMax, yMax);
+    } else {
+      // Draw axes only when grid is off
+      c.strokeStyle = "rgba(255, 255, 255, 0.2)";
+      c.lineWidth = 1;
 
-    c.strokeStyle = "rgba(255, 255, 255, 0.2)";
-    c.lineWidth = 1;
-
-    const origin = toCanvas(0, 0);
-    if (origin.y >= 0 && origin.y <= cssH) {
-      c.beginPath();
-      c.moveTo(0, origin.y);
-      c.lineTo(cssW, origin.y);
-      c.stroke();
-    }
-    if (origin.x >= 0 && origin.x <= cssW) {
-      c.beginPath();
-      c.moveTo(origin.x, 0);
-      c.lineTo(origin.x, cssH);
-      c.stroke();
+      const origin = toCanvas(0, 0);
+      if (origin.y >= 0 && origin.y <= cssH) {
+        c.beginPath();
+        c.moveTo(0, origin.y);
+        c.lineTo(cssW, origin.y);
+        c.stroke();
+      }
+      if (origin.x >= 0 && origin.x <= cssW) {
+        c.beginPath();
+        c.moveTo(origin.x, 0);
+        c.lineTo(origin.x, cssH);
+        c.stroke();
+      }
     }
 
     // ── Curve branches ───────────────────────────────────────────────────
 
-    c.strokeStyle = "rgba(120, 200, 255, 0.85)";
+    c.strokeStyle = "rgba(255, 200, 130, 0.9)";
     c.lineWidth = 1.5;
     c.lineJoin = "round";
 
@@ -212,7 +378,7 @@
 
     // ── Root markers ─────────────────────────────────────────────────────
 
-    c.fillStyle = "rgba(255, 200, 80, 0.9)";
+    c.fillStyle = "rgba(255, 155, 50, 0.95)";
     for (const r of cubicRoots(g2, g3)) {
       if (!Number.isFinite(r)) continue;
       const pt = toCanvas(r, 0);
@@ -223,19 +389,97 @@
 
     // ── Label ────────────────────────────────────────────────────────────
 
-    c.fillStyle = "rgba(255, 220, 180, 0.35)";
+    c.fillStyle = "rgba(255, 220, 180, 0.45)";
     c.font = "11px monospace";
     c.textAlign = "left";
     c.textBaseline = "bottom";
     c.fillText("y² = 4x³ − g₂x − g₃", 8, cssH - 4);
   }
+
+  // ── Pan/Zoom Event Handlers ────────────────────────────────────────────────
+
+  function handleWheel(e: WheelEvent) {
+    if (!canvas || cssW <= 0 || cssH <= 0) return;
+    e.preventDefault();
+
+    userCamera = true;  // Activate manual camera mode
+
+    // Get cursor position
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    // Convert cursor to world coords
+    const { xMin, xMax, yMax } = camToViewport(cam);
+    const wx = xMin + (px / cssW) * (xMax - xMin);
+    const wy = yMax - (py / cssH) * (2 * yMax);
+
+    // Zoom around cursor — both x and y
+    const zoomFactor = e.deltaY > 0 ? 1 + ZOOM_SPEED : 1 - ZOOM_SPEED;
+    const newSx = cam.sx + Math.log(zoomFactor);
+    const newSy = cam.sy + Math.log(zoomFactor);
+
+    // Adjust centers to keep cursor fixed
+    const hwOld = Math.exp(cam.sx) / 2;
+    const hwNew = Math.exp(newSx) / 2;
+    const newCx = wx - (wx - cam.cx) * (hwNew / hwOld);
+
+    const hhOld = Math.exp(cam.sy) / 2;
+    const hhNew = Math.exp(newSy) / 2;
+    // Vertical zoom doesn't affect center since curve is y-symmetric about origin
+    // but we still zoom uniformly for consistency
+
+    target = { ...cam, cx: newCx, sx: newSx, sy: newSy };
+    restartLoop();
+  }
+
+  function handleMouseDown(e: MouseEvent) {
+    if (e.button !== 0) return; // Left button only
+    userCamera = true;
+    dragStart = { px: e.clientX, cx: cam.cx };
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!dragStart) return;
+
+    const { xMin, xMax } = camToViewport(cam);
+    const pxDelta = e.clientX - dragStart.px;
+    const worldDelta = -(pxDelta / cssW) * (xMax - xMin);
+    const newCx = dragStart.cx + worldDelta;
+
+    cam.cx = newCx;
+    target.cx = newCx;
+    drawCurve();
+  }
+
+  function handleMouseUp() {
+    dragStart = null;
+  }
+
+  function handleDoubleClick() {
+    // Reset to auto-zoom
+    userCamera = false;
+    const bounds = computeAxisBounds(g2, g3);
+    target = boundsToCam(bounds);
+    restartLoop();
+  }
 </script>
 
 <div class="curve-section" class:fill-viewport={fillViewport}>
   <div class="canvas-stack" bind:this={container}>
-    <canvas bind:this={canvas} width={320} height={240} class="curve-canvas"></canvas>
+    <canvas
+      bind:this={canvas}
+      width={320}
+      height={240}
+      class="curve-canvas"
+      onwheel={handleWheel}
+      onmousedown={handleMouseDown}
+      ondblclick={handleDoubleClick}
+    ></canvas>
   </div>
 </div>
+
+<svelte:window onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
 
 <style>
   .curve-section {

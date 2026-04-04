@@ -4,6 +4,19 @@ All notable changes to this project will be documented here.
 
 ---
 
+## 2026-04-05
+
+### Added
+- **Elliptic curve grid, ticks, and labels:** When the Complex grid overlay is enabled, the curve view now displays a Cartesian grid with intelligent step-size selection (from {0.1, 0.2, 0.5, 1, 2, 5, 10, …}) to maintain ~8 lines per axis across all zoom levels. Perpendicular tick marks and numeric labels appear on both axes with edge clipping. Step-size selection extracted as a reusable `pickGridStep()` helper in `curve.ts`.
+- **Pan and zoom controls for elliptic curve:** Scroll wheel zooms logarithmically around the cursor (both x and y axes). Click-drag pans left-right. Double-click resets to auto-zoom. `userCamera` flag tracks manual vs automatic camera mode.
+
+### Changed
+- **Improved auto-zoom bounds:** Extended rightward padding in `computeAxisBounds()` to show more of the unbounded branch tail (1-root: 0.55→0.75, 3-root: 0.40→0.60).
+- **Curve view styling:** Updated colours to match warm app theme — curve to amber-cream `rgba(255, 200, 130, 0.9)`, root markers to ω-handle orange `rgba(255, 155, 50, 0.95)`, equation label opacity to 0.45. Grid lines and ticks use warm-white `rgba(220–240, 200–220, 180–200, ...)` for consistency.
+- **Lattice reactivity:** Elliptic curve view now resets manual pan/zoom when g₂/g₃ change, ensuring the plot always responds to lattice shape changes.
+
+---
+
 ## 2026-04-04
 
 ### Added
