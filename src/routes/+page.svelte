@@ -207,34 +207,40 @@
 
 <div class="app">
   <div class="stage">
-    <Viewport
-      bind:omega1
-      bind:omega2
-      bind:zoom
-      bind:pan
-      {tau}
-      mode={modeIndex}
-      {halo}
-      {tileSize}
-      {terms}
-      {viewMode}
-      showGrid={viewMode === "plane" && showGrid}
-      showLattice={viewMode === "plane" && showLattice}
-      showCell={viewMode === "plane" && showCell}
-      showOmega={viewMode === "plane" && showOmega}
-      {showSpecialPoints}
-      {showHalo}
-      bind:tileUpdatesPerSec
-      {expr}
-      {exprStatus}
-      {exprError}
-      {exprGlslBody}
-      onExprChange={(newExpr) => (expr = newExpr)}
-      {g2}
-      {g3}
-    />
+    <div class="viewport-container">
+      <Viewport
+        bind:omega1
+        bind:omega2
+        bind:zoom
+        bind:pan
+        {tau}
+        mode={modeIndex}
+        {halo}
+        {tileSize}
+        {terms}
+        {viewMode}
+        showGrid={viewMode === "plane" && showGrid}
+        showLattice={viewMode === "plane" && showLattice}
+        showCell={viewMode === "plane" && showCell}
+        showOmega={viewMode === "plane" && showOmega}
+        {showSpecialPoints}
+        {showHalo}
+        bind:tileUpdatesPerSec
+        {expr}
+        {exprStatus}
+        {exprError}
+        {exprGlslBody}
+        onExprChange={(newExpr) => (expr = newExpr)}
+        {g2}
+        {g3}
+      />
 
-    <aside class="sidebar" class:open={sidebarOpen}>
+      {#if !sidebarOpen}
+        <button class="open-btn" onclick={() => (sidebarOpen = true)} title="Show controls">&laquo;</button>
+      {/if}
+    </div>
+
+    <aside class="sidebar" class:hidden={!sidebarOpen}>
       <div class="sidebar-header">
         <span class="sidebar-title">Weierstrass ℘</span>
         <div class="sidebar-actions">
@@ -291,10 +297,6 @@
         {g3}
       />
     </aside>
-
-    {#if !sidebarOpen}
-      <button class="open-btn" onclick={() => (sidebarOpen = true)} title="Show controls">&laquo;</button>
-    {/if}
   </div>
 </div>
 
@@ -314,26 +316,33 @@
   }
 
   .stage {
-    position: relative;
+    display: flex;
+    flex-direction: row;
     width: 100%;
     height: 100%;
   }
 
+  .viewport-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
   .sidebar {
-    position: absolute;
-    top: 0;
-    right: 0;
-    height: 100%;
+    position: relative;
     width: 360px;
+    height: 100%;
+    flex-shrink: 0;
     overflow-y: auto;
-    transform: translateX(100%);
-    transition: transform 0.2s ease;
-    z-index: 10;
     background: #120d0b;
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
+    transition: width 0.2s ease, opacity 0.2s ease;
   }
-  .sidebar.open {
-    transform: translateX(0);
+  .sidebar.hidden {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .sidebar-header {
@@ -413,7 +422,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 4;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .open-btn:hover {

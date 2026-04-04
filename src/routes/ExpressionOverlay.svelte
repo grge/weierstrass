@@ -144,7 +144,7 @@
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    z-index: 15;
+    z-index: 5;
     pointer-events: auto;
     padding: 0.5rem 1.25rem;
     background: rgba(18, 13, 11, 0.88);
