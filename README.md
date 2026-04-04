@@ -8,7 +8,9 @@ Interactive domain-colouring visualiser for the Weierstrass elliptic function, w
 
 ## What it shows
 
-### Elliptic function view (main canvas)
+Any of the three views can be promoted to fill the main viewport using the LED button in each sidebar card. The other two remain as live thumbnails.
+
+### Elliptic function
 Domain colouring of user-defined elliptic function expressions across the complex plane. By default shows $\wp(z; \omega_1, \omega_2)$, but users can enter any expression using `wp`, `wpp` (the derivative), `g2`, `g3`, and operators `+ - * / ( ) ^k`.
 
 Hue encodes the argument of the result, brightness encodes its magnitude. The lattice vectors $\omega_1$ and $\omega_2$ are draggable — reshaping them in real time updates the rendering and the $\tau$ display simultaneously.
@@ -17,19 +19,13 @@ Four colour modes: **Classic** (Wegert-style conformal rings), **Ember** (warm c
 
 Overlays: complex grid, cell lattice, fundamental cell outline, pole and zero markers (for the base ℘ function), pole/zero glow, $\omega$-vector handles. A torus view maps the fundamental cell directly, showing the expression as a function on $\mathbb{C}/\Lambda$.
 
-### Elliptic curve view (sidebar panel)
+### Elliptic curve
 Real algebraic curve $y^2 = 4x^3 - g_2 x - g_3$ associated with the current lattice. The curve coefficients $g_2$ and $g_3$ (Weierstrass invariants) are computed from the lattice basis and updated in real time as you reshape $\omega_1$ and $\omega_2$.
 
-The panel displays:
-- Both branches ($y = \pm\sqrt{\text{RHS}}$) of the curve, drawn with root-aware parametrization for smooth visual closure at the three branch points
-- Root markers (orange circles) on the x-axis where the cubic vanishes
-- Automatic viewport scaling that includes critical points of the cubic, ensuring the full curve character is visible (e.g., "bumps" in the 1-root case, the oval and unbounded tail in the 3-root case)
-- Smooth camera animation as $\tau$ changes, using log-scale interpolation to avoid zoom artifacts
+Displays both branches ($y = \pm\sqrt{\text{RHS}}$) with root-aware parametrization for smooth visual closure at branch points, root markers on the x-axis, and automatic viewport scaling. Smooth camera animation as $\tau$ changes. This view shows the algebraic relation that $(\wp(z), \wp'(z))$ satisfies on its base field.
 
-This view provides a complementary perspective: while the main canvas shows the complex-plane behaviour of $\wp(z)$, the curve panel shows the algebraic relation that $(\wp(z), \wp'(z))$ satisfies on its base field.
-
-### Modular background ($\tau$ picker)
-The lattice-shape panel includes optional domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \mathrm{Im}(\tau) > 0\}$:
+### Modular form ($\tau$ picker)
+Domain colouring of classical modular functions on the upper half-plane $\mathbb{H} = \{\tau : \mathrm{Im}(\tau) > 0\}$. The $\tau$ handle is draggable, with preset buttons for square ($\tau = i$) and hexagonal ($\tau = e^{i\pi/3}$) lattices and modular group generators $T: \tau \mapsto \tau+1$ and $S: \tau \mapsto -1/\tau$.
 
 - $j(\tau)$ — the modular $j$-invariant, with characteristic fractal structure along the real axis
 - $\Delta(\tau)$ — the Ramanujan discriminant form, non-vanishing on $\mathbb{H}$
@@ -108,11 +104,14 @@ src/lib/
 
 src/routes/
   +page.svelte               — application state, URL serialisation, expression compilation
-  Viewport.svelte            — main canvas, pan/zoom/drag interaction, overlays
+  PaneCard.svelte            — collapsible sidebar card with LED promote button
+  EllipticFunctionPane.svelte  — elliptic function: primary/sidebar mode wrapper
+  EllipticFunctionView.svelte  — main canvas, pan/zoom/drag interaction, overlays
   ExpressionOverlay.svelte   — expression editor and view mode toggle
-  Controls.svelte            — sidebar UI
-  CurveView.svelte           — elliptic curve rendering with smooth camera animation
-  TauPicker.svelte           — τ picker with modular background canvas
+  ModularFormPane.svelte     — modular form: primary/sidebar mode wrapper
+  ModularFormView.svelte     — τ picker with modular background canvas
+  EllipticCurvePane.svelte   — elliptic curve: primary/sidebar mode wrapper
+  EllipticCurveView.svelte   — elliptic curve rendering with smooth camera animation
 ```
 
 ---
