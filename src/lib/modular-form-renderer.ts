@@ -1,4 +1,4 @@
-import { assembleShader } from "./gl";
+import { assembleShader } from "./elliptic-function-renderer";
 import quadVertSrc from "./shaders/quad.vert?raw";
 import tauModularFrag from "./shaders/tau_modular.frag?raw";
 import type { RenderMode } from "./types";

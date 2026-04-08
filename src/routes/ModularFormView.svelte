@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { basisFromTau, tauFromBasis } from "$lib/lattice";
-  import { getScale } from "$lib/lattice-utils";
+  import { basisFromTau, tauFromBasis, getScale } from "$lib/lattice";
   import { drawGridWithTicksXY } from "$lib/grid-renderer";
   import { createLerpLoop } from "$lib/lerp-loop";
   import type { LerpLoop } from "$lib/lerp-loop";
@@ -10,7 +9,7 @@
   import {
     createModularResources, destroyModularResources, renderModular,
     type ModularFunc,
-  } from "$lib/modular_gl";
+  } from "$lib/modular-form-renderer";
   import type { Vec2, RenderMode } from "$lib/types";
 
   // ── Props ──────────────────────────────────────────────────────────────────

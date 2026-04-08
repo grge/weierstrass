@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
 
-  import { createResources, destroyResources, render, compileExpressionProgram } from "$lib/gl";
+  import { createResources, destroyResources, render, compileExpressionProgram } from "$lib/elliptic-function-renderer";
   import { worldToScreen, screenToWorld, clamp, findWeierstrassZeros } from "$lib/math";
   import { toLatticeCoords } from "$lib/lattice";
   import { drawGridWithTicksXY } from "$lib/grid-renderer";

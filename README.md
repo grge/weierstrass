@@ -84,16 +84,15 @@ Shared GLSL: complex arithmetic helpers and all four colour palette functions li
 ```
 src/lib/
   math.ts                    — wp, wp', Newton zero-finding, coordinate transforms
-  lattice.ts                 — lattice arithmetic, τ↔basis conversion, canonicalization
-  lattice-utils.ts           — shared lattice helpers (scale, normalization, scaling)
+  lattice.ts                 — lattice arithmetic, τ↔basis conversion, canonicalization, scaling helpers
   curve.ts                   — elliptic curve geometry: g₂/g₃ computation, cubic roots, real interval sampling
   grid-renderer.ts           — shared Cartesian grid, ticks, labels, and step selection
   overlay-styles.ts          — centralized overlay colours, weights, and label formatting
   overlay-draw.ts            — shared overlay drawing primitives (axes, handles, vectors)
   canvas-size.ts             — ResizeObserver/DPR helpers for responsive canvas rendering
   lerp-loop.ts               — reusable animation loop for smooth camera interpolation
-  gl.ts                      — WebGL 2.0 resource lifecycle, expression compilation, two-pass rendering
-  modular_gl.ts              — single-pass modular function renderer
+  elliptic-function-renderer.ts — WebGL 2.0 resource lifecycle, expression compilation, two-pass elliptic-function rendering
+  modular-form-renderer.ts   — single-pass modular-form renderer
   types.ts                   — shared TypeScript types
   expression/
     ast.ts                   — expression AST node types

@@ -42,6 +42,23 @@ export function tauFromBasis(omega1: Vec2, omega2: Vec2): Vec2 {
   };
 }
 
+export function getScale(omega: Vec2): number {
+  return Math.sqrt(omega.x * omega.x + omega.y * omega.y);
+}
+
+export function scaleLattice(omega1: Vec2, omega2: Vec2, factor: number): { omega1: Vec2; omega2: Vec2 } {
+  return {
+    omega1: { x: omega1.x * factor, y: omega1.y * factor },
+    omega2: { x: omega2.x * factor, y: omega2.y * factor },
+  };
+}
+
+export function normalizeLattice(omega1: Vec2, omega2: Vec2): { omega1: Vec2; omega2: Vec2 } {
+  const scale = getScale(omega1);
+  if (scale < 1e-12) return { omega1, omega2 };
+  return scaleLattice(omega1, omega2, 1 / scale);
+}
+
 /**
  * Ensure Im(τ) = Im(ω₂/ω₁) > 0 by negating ω₂ when det(ω₁,ω₂) < 0.
  * The lattice {mω₁ + nω₂} is unchanged because n runs over all integers.

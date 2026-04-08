@@ -3,7 +3,7 @@
   import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
   import { EXPR_PRESETS } from "$lib/expr-presets";
-  import { getScale, scaleLattice, normalizeLattice } from "$lib/lattice-utils";
+  import { getScale, scaleLattice, normalizeLattice } from "$lib/lattice";
 
   let showPresetDropdown = $state(false);
 
