@@ -86,7 +86,8 @@
 {:else}
   <!-- Sidebar mode: only show content when not promoted to primary -->
   {#if !isPrimary}
-    <div class="modular-thumbnail">
+    <div class="modular-sidebar">
+      <div class="modular-thumbnail">
         <ModularFormView
           bind:this={sidebarViewInstance}
           bind:omega1
@@ -98,11 +99,12 @@
           {showGrid}
           fillViewport={false}
         />
-      
+      </div>
+
       <!-- Sidebar controls -->
       <div class="sidebar-controls">
         <div class="tau-display">{tauLabel}</div>
-        
+
         <label class="sidebar-label">
           <span>Modular form</span>
           <select bind:value={modularForm}>
@@ -112,7 +114,7 @@
             <option value="e6">E6(τ)</option>
           </select>
         </label>
-        
+
         <div class="preset-buttons">
           <span class="preset-label">τ =</span>
           <button class="sidebar-btn" title="Square lattice (τ = i)" onclick={() => sidebarViewInstance?.setSquare?.()}>i</button>
@@ -143,13 +145,13 @@
   .overlay-pill {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    background: rgba(18, 13, 11, 0.92);
-    border: 1px solid rgba(255, 150, 60, 0.2);
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    gap: 1.5rem;
+    background: rgba(18, 13, 11, 0.88);
+    border: 1px solid rgba(255, 150, 60, 0.25);
+    border-radius: 4px;
+    padding: 0.5rem 1.25rem;
     backdrop-filter: blur(8px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 
   .control-group {
@@ -160,26 +162,30 @@
 
   .preset-btn {
     background: #1a120f;
-    border: 1px solid rgba(255, 150, 60, 0.3);
-    color: rgba(255, 200, 150, 0.7);
-    padding: 0.25rem 0.5rem;
-    font-size: 0.7rem;
+    border: 1px solid rgba(255, 150, 60, 0.35);
+    color: rgba(255, 200, 150, 0.6);
+    padding: 0 0.6rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    border-radius: 0.2rem;
+    border-radius: 3px;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
+    height: 1.6rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .preset-btn:hover {
-    background: rgba(255, 150, 60, 0.1);
     border-color: rgba(255, 150, 60, 0.5);
-    color: rgba(255, 220, 180, 0.9);
+    background: rgba(255, 150, 60, 0.08);
+    color: rgba(255, 220, 180, 0.8);
   }
 
   .tau-label {
-    font-size: 0.7rem;
-    font-weight: 500;
+    font-size: 0.75rem;
     color: rgba(255, 200, 150, 0.7);
     white-space: nowrap;
     padding-right: 2px;
@@ -187,8 +193,8 @@
 
   .spacer {
     width: 1px;
-    height: 1.2rem;
-    background: rgba(255, 150, 60, 0.2);
+    height: 1.8rem;
+    background: rgba(255, 150, 60, 0.15);
   }
 
   .inline-label {
@@ -201,12 +207,15 @@
   }
 
   .inline-label select {
-    background: #1a120f;
-    border: 1px solid rgba(255, 150, 60, 0.3);
-    color: rgba(255, 220, 180, 0.8);
+    background: rgba(30, 20, 15, 0.7);
+    border: 1px solid rgba(255, 150, 60, 0.35);
+    color: rgba(255, 220, 180, 0.9);
     padding: 0.2rem 0.4rem;
-    font-size: 0.7rem;
-    border-radius: 0.2rem;
+    font-size: 0.8rem;
+    border-radius: 3px;
+    height: 1.6rem;
+    box-sizing: border-box;
+    font-family: inherit;
   }
 
   sup {
@@ -214,6 +223,11 @@
   }
 
 
+
+  .modular-sidebar {
+    display: flex;
+    flex-direction: column;
+  }
 
   .modular-thumbnail {
     position: relative;
@@ -229,6 +243,8 @@
     flex-direction: column;
     gap: 8px;
     margin-top: 8px;
+    margin-bottom: 0.9rem;
+    padding: 0 1rem;
   }
 
   .tau-display {
@@ -241,17 +257,23 @@
   .sidebar-label {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
+    gap: 0.4rem;
     font-size: 0.72rem;
     color: rgba(255, 200, 150, 0.75);
   }
 
+  .sidebar-label span {
+    white-space: nowrap;
+  }
+
   .sidebar-label select {
     background: #1a120f;
-    border: 1px solid rgba(255, 150, 60, 0.2);
-    color: rgba(255, 220, 180, 0.9);
-    padding: 0.3rem 0.5rem;
-    font-size: 0.78rem;
+    border: 1px solid rgba(255, 150, 60, 0.3);
+    color: rgba(255, 220, 180, 0.8);
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+    border-radius: 0.2rem;
     font-family: inherit;
   }
 
@@ -271,16 +293,16 @@
 
   .sidebar-btn {
     flex: 1;
-    background: rgba(255, 150, 60, 0.08);
-    border: 1px solid rgba(255, 150, 60, 0.25);
-    color: rgba(255, 200, 150, 0.75);
-    padding: 3px 0;
-    font-size: 0.7rem;
+    background: #1a120f;
+    border: 1px solid rgba(255, 150, 60, 0.3);
+    color: rgba(255, 200, 150, 0.7);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
     font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0.02em;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
+    border-radius: 0.2rem;
+    transition: all 0.15s ease;
+    font-family: inherit;
     min-height: 24px;
     display: flex;
     align-items: center;
@@ -288,7 +310,8 @@
   }
 
   .sidebar-btn:hover {
-    background: rgba(255, 150, 60, 0.18);
-    color: rgba(255, 220, 180, 1);
+    background: rgba(255, 150, 60, 0.1);
+    border-color: rgba(255, 150, 60, 0.5);
+    color: rgba(255, 220, 180, 0.9);
   }
 </style>
