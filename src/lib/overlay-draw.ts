@@ -33,13 +33,13 @@ export function drawHandle(
   const r = (active ? 12 : 10.5) * dpr;
 
   if (active) {
-    ctx.fillStyle = OVERLAY_COLORS.omega + "40";
-    ctx.beginPath(); ctx.arc(x, y, r * 1.45, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = OVERLAY_COLORS.omegaGlow;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.6, 0, Math.PI * 2); ctx.fill();
   }
 
-  ctx.fillStyle   = active ? "rgba(255, 165, 60, 1.0)" : "rgba(255, 140, 40, 1.0)";
-  ctx.strokeStyle = active ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.8)";
-  ctx.lineWidth   = (active ? 1.9 : 1.5) * dpr;
+  ctx.fillStyle   = active ? "rgba(255, 175, 75, 1.0)" : "rgba(255, 140, 40, 1.0)";
+  ctx.strokeStyle = active ? "rgba(255, 255, 255, 0.98)" : "rgba(255, 255, 255, 0.8)";
+  ctx.lineWidth   = (active ? 2.4 : 1.5) * dpr;
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
   ctx.fillStyle    = "rgba(255, 255, 255, 0.95)";

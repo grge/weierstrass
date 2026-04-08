@@ -13,6 +13,7 @@ All notable changes to this project will be documented here.
 - **Pane/view cleanup:** Continued the pane/view refactor so views focus on rendering and interaction, while panes own surrounding UI and controls. In particular, modular form controls now live in `ModularFormPane`, and elliptic-function expression editing now lives in `EllipticFunctionPane`.
 - **Camera ownership cleanup:** Removed stale hoisted `zoom`/`pan` state from `+page.svelte` and corresponding URL serialization. Elliptic-function camera state is now treated as view-internal, matching the actual component behaviour.
 - **Library naming cleanup:** Renamed renderer modules to follow the app’s main vocabulary (`elliptic-function-renderer.ts`, `modular-form-renderer.ts`) and folded the small lattice helper file back into `lattice.ts`.
+- **Anchor hover polish:** Unified shared draggable-handle hover styling so ω₁, ω₂, and τ now all use the same clearer active state with a stronger halo + border combination.
 - **Visual consistency pass:** Unified sidebar thumbnails and control styling so the mini render views share the same framing, border radius, border weight, and button treatment across panes.
 - **Grid overlay pass:** Renamed the overlay toggle from “Complex Grid” to “Grid”, brightened the grid styling for legibility over domain colouring, and fixed elliptic-curve grid toggles so they redraw immediately.
 

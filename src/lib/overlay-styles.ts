@@ -24,8 +24,9 @@ export const OVERLAY_COLORS = {
   marker: "rgba(255, 155, 50, 0.95)",       // poles, zeros, roots (bright)
   markerSize: 5,                             // marker radius in pixels
 
-  // Omega vectors: ω₁/ω₂ handles
-  omega: "rgba(255, 155, 50, 0.7)",         // omega vector colour
+  // Omega vectors / draggable handles: ω₁, ω₂, τ
+  omega: "rgba(255, 155, 50, 0.7)",         // vector colour
+  omegaGlow: "rgba(255, 155, 50, 0.25)",    // hover halo for draggable handles
   omegaArrowSize: 8,                         // arrowhead size
 };
 
