@@ -254,24 +254,5 @@ export function computeAxisBounds(
   return { xMin, xMax, yMax };
 }
 
-/**
- * Pick a grid step size from the set {0.1, 0.2, 0.5, 1, 2, 5, 10, …}
- * such that there are at most ~maxLines lines in the given span.
- *
- * @param span The span of the axis (e.g., xMax - xMin)
- * @param maxLines Target maximum number of lines (default 8)
- */
-export function pickGridStep(span: number, maxLines = 8): number {
-  const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
-  let bestStep = 0.1;
-
-  for (const step of steps) {
-    const numLines = Math.ceil(span / step);
-    if (numLines <= maxLines) {
-      bestStep = step;
-      break;
-    }
-  }
-
-  return bestStep;
-}
+// pickGridStep has been moved to grid-renderer.ts
+export { pickGridStep } from "./grid-renderer";

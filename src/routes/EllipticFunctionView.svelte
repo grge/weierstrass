@@ -1,16 +1,22 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import ExpressionOverlay from "./ExpressionOverlay.svelte";
+
   import { createResources, destroyResources, render, compileExpressionProgram } from "$lib/gl";
   import { worldToScreen, screenToWorld, clamp, findWeierstrassZeros } from "$lib/math";
   import { toLatticeCoords } from "$lib/lattice";
+  import { drawGridWithTicksXY } from "$lib/grid-renderer";
+  import { OVERLAY_COLORS, OVERLAY_WEIGHTS } from "$lib/overlay-styles";
+  import { createLerpLoop } from "$lib/lerp-loop";
+  import type { LerpLoop } from "$lib/lerp-loop";
+  import { observeSize, getDevicePixelRatio } from "$lib/canvas-size";
+  import { drawHandle, drawAxesXY, drawVectorArrow, drawOriginDot } from "$lib/overlay-draw";
   import type { Vec2, DragState, GLResources, RenderMode, ViewMode } from "$lib/types";
+
+  // ── Props ──────────────────────────────────────────────────────────────────
 
   let {
     omega1 = $bindable({ x: 1, y: 0 }),
     omega2 = $bindable({ x: 0.25, y: 1.2 }),
-    zoom   = $bindable(1.6),
-    pan    = $bindable({ x: 0.8, y: 0.7 }),
     tau,
     mode,
     halo,
@@ -24,129 +30,62 @@
     showOmega,
     viewMode = $bindable("plane"),
     tileUpdatesPerSec = $bindable(0),
-    expr = "wp",
-    exprStatus = "ok" as "ok" | "error",
-    exprError = "",
     exprGlslBody = "",
-    onExprChange = (e: string) => {},
+    expr = "wp",
     g2 = 0,
     g3 = 0,
     showOverlay = true,
   }: {
-    omega1?: Vec2; omega2?: Vec2; zoom?: number; pan?: Vec2;
+    omega1?: Vec2; omega2?: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
     tileUpdatesPerSec?: number;
-    expr?: string;
-    exprStatus?: "ok" | "error";
-    exprError?: string;
     exprGlslBody?: string;
-    onExprChange?: (expr: string) => void;
+    expr?: string;
     g2?: number;
     g3?: number;
     showOverlay?: boolean;
   } = $props();
+
+  // ── View-internal state (camera) ───────────────────────────────────────────
+  
+  let zoom: number = $state(1.6);
+  let pan: Vec2 = $state({ x: 0.8, y: 0.7 });
+
+  // ── DOM refs / GL resources ────────────────────────────────────────────────
 
   let container: HTMLDivElement;
   let glCanvas: HTMLCanvasElement;
   let overlayCanvas: HTMLCanvasElement;
   let resources: GLResources | null = null;
   let resourceVersion = $state(0);
-  let sizeVersion = $state(0);  // bumped on window resize to trigger re-render
+  let sizeVersion = $state(0);  // bumped on resize to trigger re-render
+
+  // ── Camera / view state ────────────────────────────────────────────────────
+  // zoom/pan are view-internal state; camZoom/camPan are the smoothed current state.
+  // The RAF loop lerps cam → internal targets and renders each frame.
+
+  let camZoom = zoom;
+  let camPanX = pan.x;
+  let camPanY = pan.y;
+  let loop: LerpLoop | null = null;
+
+  const LERP_T = 0.14;
+  const CAM_EPS = 1e-5;
+
+  // ── Interaction state ──────────────────────────────────────────────────────
+
   let drag: DragState | null = null;
   let hoverAnchor: "omega1" | "omega2" | null = $state(null);
 
-  let _tileRenderCount = 0;  // raw counter, sampled every second
+  // ── Derived state ──────────────────────────────────────────────────────────
 
   let prevZerosRef: Vec2[] = [];
   let zeros: Vec2[] = $state([]);
+  let _tileRenderCount = 0;  // raw counter, sampled every second
 
-  // ── GL lifecycle ──────────────────────────────────────────────────────────
-
-  $effect(() => {
-    const ts = tileSize;
-    if (!glCanvas) {
-      return;
-    }
-    const gl = glCanvas.getContext("webgl2", {
-      antialias: true, premultipliedAlpha: false, preserveDrawingBuffer: false,
-    }) as WebGL2RenderingContext | null;
-    if (!gl) {
-      return;
-    }
-    if (resources) destroyResources(resources);
-    try {
-      resources = createResources(gl, ts);
-      untrack(() => { resourceVersion++; });
-      // After creating new resources, recompile tile shader with current expression
-      if (exprGlslBody && resources) {
-        compileExpressionProgram(resources, exprGlslBody);
-      }
-    } catch (err) {
-      console.error("Failed to create resources:", err);
-      resources = null;
-    }
-    return () => { if (resources) { destroyResources(resources); resources = null; } };
-  });
-
-  $effect(() => {
-    const nextZeros = findWeierstrassZeros(omega1, omega2, prevZerosRef, terms);
-    prevZerosRef = nextZeros;
-    zeros = nextZeros;
-  });
-
-  // ── Tile shader compilation effect ────────────────────────────────────
-  // Compile tile shader whenever the expression GLSL body changes
-  $effect(() => {
-    exprGlslBody;  // dependency
-    if (!resources || !exprGlslBody) return;
-
-    const result = compileExpressionProgram(resources, exprGlslBody);
-    if (!result.ok) {
-      // On error, tile shader is not updated. User sees error message and can correct.
-    }
-  });
-
-  // ── Combined render effect ───────────────────────────────────────────────
-  //
-  // NOTE: This single effect handles both the GL tile render and the 2D overlay
-  // draw. That means any overlay-only state change (e.g. toggling showGrid,
-  // showCell, or showSpecialPoints) triggers a full GPU re-render as a side
-  // effect, even though the GL output is unchanged.
-  //
-  // Splitting into separate GL and overlay effects would avoid this, but the
-  // practical impact is low: overlay toggles are infrequent, and the dominant
-  // cost during interactive use (anchor dragging) changes omega1/omega2 which
-  // requires a GL re-render anyway. Revisit if overlay interactivity becomes
-  // significantly more complex.
-  $effect(() => {
-    // Depend on exprGlslBody so expression shader changes trigger re-render
-    exprGlslBody;
-
-    if (!resources || !glCanvas || !overlayCanvas) {
-      return;
-    }
-    const dpr = Math.min(devicePixelRatio ?? 1, 2);
-    const w = Math.max(1, Math.floor(container.clientWidth  * dpr));
-    const h = Math.max(1, Math.floor(container.clientHeight * dpr));
-    if (glCanvas.width !== w || glCanvas.height !== h) { glCanvas.width = w; glCanvas.height = h; }
-    if (overlayCanvas.width !== w || overlayCanvas.height !== h) { overlayCanvas.width = w; overlayCanvas.height = h; }
-
-    render(resources, {
-      omega1, omega2, tau, zoom, pan, mode,
-      halo: showHalo ? halo : 0,
-      viewMode, terms,
-      width: w, height: h,
-      g2, g3,
-    });
-    _tileRenderCount++;
-
-    drawOverlay(overlayCanvas, w, h, dpr, zeros);
-
-  });
-
-  // ── overlay drawing ───────────────────────────────────────────────────────
+  // ── Coordinate transforms ──────────────────────────────────────────────────
 
   /** World point → fractional lattice UV coords in [0,1)² */
   function toLatticeUV(z: Vec2): Vec2 {
@@ -162,10 +101,10 @@
   /** Find the integer lattice range visible on screen, with padding and a hard cap. */
   function visibleLatticeRange(w: number, h: number) {
     const corners = [
-      screenToWorld(0, 0, w, h, pan.x, pan.y, zoom),
-      screenToWorld(w, 0, w, h, pan.x, pan.y, zoom),
-      screenToWorld(0, h, w, h, pan.x, pan.y, zoom),
-      screenToWorld(w, h, w, h, pan.x, pan.y, zoom),
+      screenToWorld(0, 0, w, h, camPanX, camPanY, camZoom),
+      screenToWorld(w, 0, w, h, camPanX, camPanY, camZoom),
+      screenToWorld(0, h, w, h, camPanX, camPanY, camZoom),
+      screenToWorld(w, h, w, h, camPanX, camPanY, camZoom),
     ].map(toLattice);
     const ms = corners.map(c => c.x);
     const ns = corners.map(c => c.y);
@@ -179,7 +118,32 @@
   }
 
   function ws(x: number, y: number, w: number, h: number) {
-    return worldToScreen(x, y, w, h, pan.x, pan.y, zoom);
+    return worldToScreen(x, y, w, h, camPanX, camPanY, camZoom);
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  function drawFrame() {
+    if (!resources || !glCanvas || !overlayCanvas) return;
+    const dpr = getDevicePixelRatio();
+    const w = Math.max(1, Math.floor(container.clientWidth  * dpr));
+    const h = Math.max(1, Math.floor(container.clientHeight * dpr));
+    if (glCanvas.width !== w || glCanvas.height !== h) { glCanvas.width = w; glCanvas.height = h; }
+    if (overlayCanvas.width !== w || overlayCanvas.height !== h) { overlayCanvas.width = w; overlayCanvas.height = h; }
+
+    render(resources, {
+      omega1, omega2, tau,
+      zoom: camZoom,
+      pan: { x: camPanX, y: camPanY },
+      mode,
+      halo: showHalo ? halo : 0,
+      viewMode, terms,
+      width: w, height: h,
+      g2, g3,
+    });
+    _tileRenderCount++;
+
+    drawOverlay(overlayCanvas, w, h, dpr, zeros);
   }
 
   function drawOverlay(canvas: HTMLCanvasElement, w: number, h: number, dpr: number, zeros: Vec2[]) {
@@ -190,41 +154,39 @@
 
     // ── a) complex grid ──────────────────────────────────────────────────────
     if (showGrid && viewMode === "plane") {
-      const tl = screenToWorld(0, 0, w, h, pan.x, pan.y, zoom);
-      const br = screenToWorld(w, h, w, h, pan.x, pan.y, zoom);
-      const xMin = Math.ceil(Math.min(tl.x, br.x));
-      const xMax = Math.floor(Math.max(tl.x, br.x));
-      const yMin = Math.ceil(Math.min(tl.y, br.y));
-      const yMax = Math.floor(Math.max(tl.y, br.y));
-      const MAX_LINES = 40;
-      ctx.strokeStyle = "rgba(160, 210, 255, 0.3)";
-      ctx.lineWidth = dpr;
-      if (xMax - xMin <= MAX_LINES) {
-        for (let x = xMin; x <= xMax; x++) {
-          const s0 = ws(x, tl.y, w, h), s1 = ws(x, br.y, w, h);
-          ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
-        }
-      }
-      if (yMax - yMin <= MAX_LINES) {
-        for (let y = yMin; y <= yMax; y++) {
-          const s0 = ws(tl.x, y, w, h), s1 = ws(br.x, y, w, h);
-          ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
-        }
-      }
-      // axis highlight
-      ctx.strokeStyle = "rgba(160, 210, 255, 0.55)";
-      ctx.lineWidth = 1.5 * dpr;
-      const ax = ws(0, tl.y, w, h), bx = ws(0, br.y, w, h);
-      ctx.beginPath(); ctx.moveTo(ax.x, ax.y); ctx.lineTo(bx.x, bx.y); ctx.stroke();
-      const ay = ws(tl.x, 0, w, h), by2 = ws(br.x, 0, w, h);
-      ctx.beginPath(); ctx.moveTo(ay.x, ay.y); ctx.lineTo(by2.x, by2.y); ctx.stroke();
+      const tl = screenToWorld(0, 0, w, h, camPanX, camPanY, camZoom);
+      const br = screenToWorld(w, h, w, h, camPanX, camPanY, camZoom);
+      const xMin = Math.min(tl.x, br.x);
+      const xMax = Math.max(tl.x, br.x);
+      const yMin = Math.min(tl.y, br.y);
+      const yMax = Math.max(tl.y, br.y);
+
+      drawGridWithTicksXY(
+        ctx,
+        { min: xMin, max: xMax },
+        { min: yMin, max: yMax },
+        (worldX: number) => ws(worldX, 0, w, h).x,
+        (worldY: number) => ws(0, worldY, w, h).y,
+        w, h,
+        {
+          showGrid: true,
+          showTicks: true,
+          showLabels: true,
+          tickSize: 4 * dpr,
+          labelOffset: 4 * dpr,
+          labelFont: `${Math.round(9 * dpr)}px monospace`,
+          edgeClip: 6,
+        },
+      );
+      const axisOrigin = ws(0, 0, w, h);
+      drawAxesXY(ctx, axisOrigin.x, axisOrigin.y, w, h, dpr);
     }
 
     // ── b) cell lattice grid ─────────────────────────────────────────────────
     if (showLattice && viewMode === "plane") {
       const { mMin, mMax, nMin, nMax } = visibleLatticeRange(w, h);
-      ctx.strokeStyle = "rgba(255, 215, 90, 0.28)";
-      ctx.lineWidth = dpr;
+      ctx.strokeStyle = OVERLAY_COLORS.lattice;
+      ctx.lineWidth = OVERLAY_WEIGHTS.thin * dpr;
       for (let m = mMin; m <= mMax; m++) {
         for (let n = nMin; n <= nMax; n++) {
           const ox = m * omega1.x + n * omega2.x;
@@ -244,8 +206,8 @@
       const p1 = ws(omega1.x, omega1.y, w, h);
       const p2 = ws(omega1.x + omega2.x, omega1.y + omega2.y, w, h);
       const p3 = ws(omega2.x, omega2.y, w, h);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = OVERLAY_COLORS.cell;
+      ctx.lineWidth = OVERLAY_WEIGHTS.normal * dpr;
       ctx.setLineDash([6 * dpr, 4 * dpr]);
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
@@ -262,9 +224,6 @@
       const R = 7 * dpr;
 
       if (viewMode === "torus") {
-        // Map tile UV → canvas pixel.
-        // Screen shader: uv.x = fragCoord.x/w, uv.y = 1 - fragCoord.y/h  (GL fragCoord from bottom)
-        // Canvas cy is from top, so cy = h - fragCoord.y = h - (1-uv.y)*h = uv.y*h
         const uvToScreen = (uv: Vec2) => ({ x: uv.x * w, y: uv.y * h });
 
         const drawCross = (s: {x:number,y:number}) => {
@@ -272,14 +231,12 @@
           ctx.beginPath(); ctx.moveTo(s.x + R, s.y - R); ctx.lineTo(s.x - R, s.y + R); ctx.stroke();
         };
 
-        // Poles at all four corners
         const poleUVs = [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1}];
         ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 7 * dpr;
         for (const uv of poleUVs) drawCross(uvToScreen(uv));
         ctx.strokeStyle = "rgba(0,0,0,1.0)"; ctx.lineWidth = 2.5 * dpr;
         for (const uv of poleUVs) drawCross(uvToScreen(uv));
 
-        // Zeros at their UV positions
         for (const z0 of zeros) {
           const uv = toLatticeUV(z0);
           const s = uvToScreen(uv);
@@ -291,7 +248,6 @@
       } else {
         const { mMin, mMax, nMin, nMax } = visibleLatticeRange(w, h);
 
-        // Helper: draw all pole × positions
         const drawPoles = () => {
           for (let m = mMin; m <= mMax; m++) {
             for (let n = nMin; n <= nMax; n++) {
@@ -301,7 +257,6 @@
             }
           }
         };
-        // Helper: draw all zero ○ positions
         const drawZeros = () => {
           for (const z0 of zeros) {
             for (let m = mMin; m <= mMax; m++) {
@@ -326,62 +281,29 @@
       const w1s = ws(omega1.x, omega1.y, w, h);
       const w2s = ws(omega2.x, omega2.y, w, h);
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-      ctx.lineWidth = 2.5 * dpr;
-      ctx.beginPath(); ctx.moveTo(origin.x, origin.y); ctx.lineTo(w1s.x, w1s.y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(origin.x, origin.y); ctx.lineTo(w2s.x, w2s.y); ctx.stroke();
+      drawVectorArrow(ctx, origin.x, origin.y, w1s.x, w1s.y, dpr);
+      drawVectorArrow(ctx, origin.x, origin.y, w2s.x, w2s.y, dpr);
+      drawOriginDot(ctx, origin.x, origin.y, dpr);
 
-      // origin dot
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.beginPath(); ctx.arc(origin.x, origin.y, 3.5 * dpr, 0, Math.PI * 2); ctx.fill();
-
-      // handles with subtle hover/drag feedback
-      const drawHandle = (s: Vec2, key: "omega1" | "omega2") => {
-        const active = hoverAnchor === key || drag?.kind === key;
-        const r = (active ? 12 : 10.5) * dpr;
-        if (active) {
-          ctx.fillStyle = "rgba(255, 170, 70, 0.25)";
-          ctx.beginPath(); ctx.arc(s.x, s.y, r * 1.45, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = active ? "rgba(255, 165, 60, 1.0)" : "rgba(255, 140, 40, 1.0)";
-        ctx.strokeStyle = active ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.8)";
-        ctx.lineWidth = (active ? 1.9 : 1.5) * dpr;
-        ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-      };
-      drawHandle(w1s, "omega1");
-      drawHandle(w2s, "omega2");
-
-      // labels inside handles
-      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-      ctx.font = `600 ${Math.round(11 * dpr)}px system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("ω₁", w1s.x, w1s.y);
-      ctx.fillText("ω₂", w2s.x, w2s.y);
+      drawHandle(ctx, w1s.x, w1s.y, "ω₁", hoverAnchor === "omega1" || drag?.kind === "omega1", dpr);
+      drawHandle(ctx, w2s.x, w2s.y, "ω₂", hoverAnchor === "omega2" || drag?.kind === "omega2", dpr);
     }
 
     ctx.restore();
   }
 
-  // ── interaction ───────────────────────────────────────────────────────────
+  // ── Interaction handlers ───────────────────────────────────────────────────
 
   /**
    * Project `proposed` onto the half-space det(ω₁,ω₂) ≥ MIN_DET,
    * keeping the point as close as possible to where the pointer is.
-   * proposedIsOmega1=true  → proposed is ω₁, fixed is ω₂
-   * proposedIsOmega1=false → proposed is ω₂, fixed is ω₁
    */
   function clampToPositiveDet(proposed: Vec2, fixed: Vec2, proposedIsOmega1: boolean): Vec2 {
     const MIN_DET = 1e-4;
-    // det(ω₁,ω₂) = ω₁.x·ω₂.y − ω₁.y·ω₂.x
     const d = proposedIsOmega1
-      ? proposed.x * fixed.y  - proposed.y * fixed.x   // det(proposed, ω₂)
-      : fixed.x   * proposed.y - fixed.y  * proposed.x; // det(ω₁, proposed)
+      ? proposed.x * fixed.y  - proposed.y * fixed.x
+      : fixed.x   * proposed.y - fixed.y  * proposed.x;
     if (d >= MIN_DET) return proposed;
-    // Gradient of det w.r.t. the proposed vector:
-    //   ∂det/∂ω₁ = (ω₂.y, −ω₂.x)    ∂det/∂ω₂ = (−ω₁.y, ω₁.x)
     const [gx, gy] = proposedIsOmega1
       ? [ fixed.y, -fixed.x]
       : [-fixed.y,  fixed.x];
@@ -392,7 +314,7 @@
   }
 
   function pointerToWorld(e: PointerEvent): Vec2 {
-    const dpr = Math.min(devicePixelRatio ?? 1, 2);
+    const dpr = getDevicePixelRatio();
     const rect = overlayCanvas.getBoundingClientRect();
     const w = Math.max(1, Math.floor(rect.width  * dpr));
     const h = Math.max(1, Math.floor(rect.height * dpr));
@@ -401,7 +323,7 @@
 
   function anchorHitTest(e: PointerEvent): "omega1" | "omega2" | null {
     if (viewMode === "torus") return null;
-    const dpr = Math.min(devicePixelRatio ?? 1, 2);
+    const dpr = getDevicePixelRatio();
     const rect = overlayCanvas.getBoundingClientRect();
     const w = Math.max(1, Math.floor(rect.width * dpr));
     const h = Math.max(1, Math.floor(rect.height * dpr));
@@ -409,15 +331,13 @@
     const my = (e.clientY - rect.top) * dpr;
     const w1s = worldToScreen(omega1.x, omega1.y, w, h, pan.x, pan.y, zoom);
     const w2s = worldToScreen(omega2.x, omega2.y, w, h, pan.x, pan.y, zoom);
-    const d1 = Math.hypot(mx - w1s.x, my - w1s.y);
-    const d2 = Math.hypot(mx - w2s.x, my - w2s.y);
-    if (d1 < 18 * dpr) return "omega1";
-    if (d2 < 18 * dpr) return "omega2";
+    if (Math.hypot(mx - w1s.x, my - w1s.y) < 18 * dpr) return "omega1";
+    if (Math.hypot(mx - w2s.x, my - w2s.y) < 18 * dpr) return "omega2";
     return null;
   }
 
   function handlePointerDown(e: PointerEvent) {
-    if (viewMode === "torus") return;  // torus: no pan/zoom/drag
+    if (viewMode === "torus") return;
     const hit = anchorHitTest(e);
     if (hit === "omega1") drag = { kind: "omega1" };
     else if (hit === "omega2") drag = { kind: "omega2" };
@@ -425,18 +345,24 @@
     (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
   }
 
-  const PAN_SPEED = 260;
-
   function handlePointerMove(e: PointerEvent) {
     if (!drag) {
       hoverAnchor = anchorHitTest(e);
       return;
     }
     if (drag.kind === "pan") {
-      const dx = e.clientX - drag.x;
-      const dy = e.clientY - drag.y;
+      const dpr = getDevicePixelRatio();
+      const rect = overlayCanvas.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width  * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      const dx = (e.clientX - drag.x) * dpr;
+      const dy = (e.clientY - drag.y) * dpr;
       drag = { kind: "pan", x: e.clientX, y: e.clientY };
-      pan = { x: pan.x - dx / PAN_SPEED / zoom, y: pan.y + dy / PAN_SPEED / zoom };
+      pan = {
+        x: pan.x - dx / (zoom * Math.min(w, h) * 0.5),
+        y: pan.y + dy / (zoom * Math.min(w, h) * 0.5),
+      };
+      camPanX = pan.x; camPanY = pan.y;
       hoverAnchor = null;
       return;
     }
@@ -448,12 +374,17 @@
 
   function handlePointerUp(e: PointerEvent) {
     drag = null;
-    hoverAnchor = anchorHitTest(e);
+    hoverAnchor = null;
+    const rect = overlayCanvas.getBoundingClientRect();
+    if (e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top  && e.clientY <= rect.bottom) {
+      hoverAnchor = anchorHitTest(e);
+    }
     (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
   }
 
   function handlePointerLeave() {
-    if (!drag) hoverAnchor = null;
+    hoverAnchor = null;
   }
 
   function handleWheel(e: WheelEvent) {
@@ -462,28 +393,113 @@
     zoom = clamp(zoom * Math.exp(-e.deltaY * 0.0012), 0.35, 10);
   }
 
+  function handleDoubleClick() {
+    if (viewMode === "torus") return;
+    zoom = 0.8;
+    pan = { x: 0.8, y: 0.7 };
+  }
+
+  // ── Mount / lifecycle ──────────────────────────────────────────────────────
+
   onMount(() => {
-    const onResize = () => {
-      if (!glCanvas || !overlayCanvas || !container) return;
-      const dpr = Math.min(devicePixelRatio ?? 1, 2);
-      const w = Math.max(1, Math.floor(container.clientWidth  * dpr));
-      const h = Math.max(1, Math.floor(container.clientHeight * dpr));
-      glCanvas.width = w; glCanvas.height = h;
-      overlayCanvas.width = w; overlayCanvas.height = h;
+    const stopObserving = observeSize(container, () => {
       untrack(() => { sizeVersion++; });
-    };
-    window.addEventListener("resize", onResize);
+    });
 
     const interval = setInterval(() => {
       untrack(() => { tileUpdatesPerSec = _tileRenderCount; });
       _tileRenderCount = 0;
     }, 1000);
 
+    loop = createLerpLoop({
+      onFrame() {
+        camZoom += (zoom    - camZoom) * LERP_T;
+        camPanX += (pan.x   - camPanX) * LERP_T;
+        camPanY += (pan.y   - camPanY) * LERP_T;
+        drawFrame();
+      },
+      isSettled() {
+        return Math.abs(camZoom - zoom)  < CAM_EPS &&
+               Math.abs(camPanX - pan.x) < CAM_EPS &&
+               Math.abs(camPanY - pan.y) < CAM_EPS;
+      },
+      onSettle() {
+        camZoom = zoom; camPanX = pan.x; camPanY = pan.y;
+        drawFrame();
+      },
+    });
+    loop.restart();
+
     return () => {
-      window.removeEventListener("resize", onResize);
+      stopObserving();
       clearInterval(interval);
+      loop?.destroy();
     };
   });
+
+  // ── Reactive triggers ──────────────────────────────────────────────────────
+
+  // GL resource lifecycle: recreate when tileSize changes
+  $effect(() => {
+    const ts = tileSize;
+    if (!glCanvas) return;
+    const gl = glCanvas.getContext("webgl2", {
+      antialias: true, premultipliedAlpha: false, preserveDrawingBuffer: false,
+    }) as WebGL2RenderingContext | null;
+    if (!gl) return;
+    if (resources) destroyResources(resources);
+    try {
+      resources = createResources(gl, ts);
+      untrack(() => { resourceVersion++; });
+      if (exprGlslBody && resources) compileExpressionProgram(resources, exprGlslBody);
+    } catch (err) {
+      console.error("Failed to create resources:", err);
+      resources = null;
+    }
+    return () => { if (resources) { destroyResources(resources); resources = null; } };
+  });
+
+  // Zero-finding: recompute when lattice or terms changes
+  $effect(() => {
+    const nextZeros = findWeierstrassZeros(omega1, omega2, prevZerosRef, terms);
+    prevZerosRef = nextZeros;
+    zeros = nextZeros;
+  });
+
+  // Expression compilation: recompile tile shader when GLSL body changes
+  $effect(() => {
+    exprGlslBody;  // dependency
+    if (!resources || !exprGlslBody) return;
+    compileExpressionProgram(resources, exprGlslBody);
+    // Force a re-render after compilation
+    untrack(() => loop?.restart());
+  });
+
+  // Render trigger: restart RAF loop on any visual state change
+  $effect(() => {
+    void [
+      exprGlslBody, expr, omega1, omega2, tau, mode, halo, showHalo, viewMode, terms,
+      showGrid, showLattice, showCell, showSpecialPoints, showOmega, zeros,
+      resourceVersion, sizeVersion, zoom, pan.x, pan.y, g2, g3, hoverAnchor,
+    ];
+    untrack(() => loop?.restart());
+  });
+
+  // ── Exported methods ──────────────────────────────────────────────────────
+
+  export function setCamera(newZoom: number, newPan: Vec2) {
+    zoom = newZoom;
+    pan = { ...newPan };
+  }
+
+  export function resetCamera() {
+    zoom = 1.6;
+    pan = { x: 0.8, y: 0.7 };
+  }
+
+  export function getCamera() {
+    return { zoom, pan: { ...pan } };
+  }
 </script>
 
 <div
@@ -497,20 +513,14 @@
   onpointercancel={handlePointerUp}
   onpointerleave={handlePointerLeave}
   onwheel={handleWheel}
+  ondblclick={handleDoubleClick}
 >
   <canvas bind:this={glCanvas}      class="gl-canvas"></canvas>
   <canvas bind:this={overlayCanvas} class="overlay-canvas"></canvas>
   {#if showOverlay}
-    <ExpressionOverlay
-      {expr}
-      status={exprStatus}
-      error={exprError}
-      onExprChange={onExprChange}
-      bind:viewMode
-    />
     <div class="hint">
       <span>drag ω₁ or ω₂ · pan background</span>
-      <span>scroll to zoom</span>
+      <span>scroll to zoom · double-click to reset</span>
     </div>
   {/if}
 </div>

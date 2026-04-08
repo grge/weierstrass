@@ -25,15 +25,21 @@
     showGrid: boolean;
   } = $props();
 
-  // Reference to the primary-mode view instance — used to delegate button actions
-  let viewInstance: ModularFormView | null = $state(null);
+  // References to view instances for button actions
+  let primaryViewInstance: ModularFormView | null = $state(null);
+  let sidebarViewInstance: ModularFormView | null = $state(null);
+
+  // Derived state for sidebar controls
+  import { tauFromBasis } from "$lib/lattice";
+  const tau = $derived(tauFromBasis(omega1, omega2));
+  const tauLabel = $derived(`τ = ${tau.x.toFixed(3)} + ${tau.y.toFixed(3)}i`);
 </script>
 
 {#if mode === "primary"}
   <!-- Primary mode: full-size canvas with overlay controls (tau presets + background selector) -->
   <div class="modular-viewport">
     <ModularFormView
-      bind:this={viewInstance}
+      bind:this={primaryViewInstance}
       bind:omega1
       bind:omega2
       bind:modularForm
@@ -41,7 +47,6 @@
       tauTerms={modularTerms}
       {colorMode}
       {showGrid}
-      showControls={false}
       fillViewport={true}
     />
 
@@ -64,14 +69,14 @@
 
         <div class="control-group">
           <span class="tau-label">τ =</span>
-          <button class="preset-btn" onclick={() => viewInstance?.setSquare()} title="Square lattice (τ = i)">i</button>
-          <button class="preset-btn" onclick={() => viewInstance?.setHex()} title="Hexagonal lattice (τ = e^(iπ/3))">
+          <button class="preset-btn" onclick={() => primaryViewInstance?.setSquare()} title="Square lattice (τ = i)">i</button>
+          <button class="preset-btn" onclick={() => primaryViewInstance?.setHex()} title="Hexagonal lattice (τ = e^(iπ/3))">
             e<sup>iπ/3</sup>
           </button>
-          <button class="preset-btn" onclick={() => viewInstance?.applyT()} title="Apply T generator: τ ↦ τ + 1">
+          <button class="preset-btn" onclick={() => primaryViewInstance?.applyT()} title="Apply T generator: τ ↦ τ + 1">
             τ+1
           </button>
-          <button class="preset-btn" onclick={() => viewInstance?.applyS()} title="Apply S generator: τ ↦ −1/τ">
+          <button class="preset-btn" onclick={() => primaryViewInstance?.applyS()} title="Apply S generator: τ ↦ −1/τ">
             −1/τ
           </button>
         </div>
@@ -81,17 +86,41 @@
 {:else}
   <!-- Sidebar mode: only show content when not promoted to primary -->
   {#if !isPrimary}
-    <div class="sidebar-content">
-      <ModularFormView
-        bind:omega1
-        bind:omega2
-        bind:modularForm
-        tauTileSize={modularTileSize}
-        tauTerms={modularTerms}
-        {colorMode}
-        {showGrid}
-        showControls={true}
-      />
+    <div class="modular-thumbnail">
+        <ModularFormView
+          bind:this={sidebarViewInstance}
+          bind:omega1
+          bind:omega2
+          bind:modularForm
+          tauTileSize={modularTileSize}
+          tauTerms={modularTerms}
+          {colorMode}
+          {showGrid}
+          fillViewport={false}
+        />
+      
+      <!-- Sidebar controls -->
+      <div class="sidebar-controls">
+        <div class="tau-display">{tauLabel}</div>
+        
+        <label class="sidebar-label">
+          <span>Modular form</span>
+          <select bind:value={modularForm}>
+            <option value="j">j(τ)</option>
+            <option value="delta">Δ(τ)</option>
+            <option value="e4">E4(τ)</option>
+            <option value="e6">E6(τ)</option>
+          </select>
+        </label>
+        
+        <div class="preset-buttons">
+          <span class="preset-label">τ =</span>
+          <button class="sidebar-btn" title="Square lattice (τ = i)" onclick={() => sidebarViewInstance?.setSquare?.()}>i</button>
+          <button class="sidebar-btn" title="Hexagonal lattice (τ = e^(iπ/3))" onclick={() => sidebarViewInstance?.setHex?.()}>e<sup>iπ/3</sup></button>
+          <button class="sidebar-btn" title="Apply T generator: τ ↦ τ + 1" onclick={() => sidebarViewInstance?.applyT?.()}>τ + 1</button>
+          <button class="sidebar-btn" title="Apply S generator: τ ↦ −1/τ" onclick={() => sidebarViewInstance?.applyS?.()}>−1/τ</button>
+        </div>
+      </div>
     </div>
   {/if}
 {/if}
@@ -182,5 +211,84 @@
 
   sup {
     font-size: 0.6em;
+  }
+
+
+
+  .modular-thumbnail {
+    position: relative;
+    aspect-ratio: 4/3;
+    border: 1px solid rgba(255, 150, 60, 0.15);
+    border-radius: 0.3rem;
+    overflow: hidden;
+    margin: 0.5rem 1rem 0.75rem;
+  }
+
+  .sidebar-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .tau-display {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: rgba(255, 200, 150, 0.7);
+    text-align: right;
+  }
+
+  .sidebar-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: rgba(255, 200, 150, 0.75);
+  }
+
+  .sidebar-label select {
+    background: #1a120f;
+    border: 1px solid rgba(255, 150, 60, 0.2);
+    color: rgba(255, 220, 180, 0.9);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+    font-family: inherit;
+  }
+
+  .preset-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .preset-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 200, 150, 0.75);
+    white-space: nowrap;
+    padding-right: 2px;
+  }
+
+  .sidebar-btn {
+    flex: 1;
+    background: rgba(255, 150, 60, 0.08);
+    border: 1px solid rgba(255, 150, 60, 0.25);
+    color: rgba(255, 200, 150, 0.75);
+    padding: 3px 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-btn:hover {
+    background: rgba(255, 150, 60, 0.18);
+    color: rgba(255, 220, 180, 1);
   }
 </style>

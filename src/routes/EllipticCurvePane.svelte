@@ -25,7 +25,7 @@
   <!-- Sidebar mode: thumbnail (hidden when promoted) -->
   {#if !isPrimary}
     <div class="curve-thumbnail">
-      <EllipticCurveView {g2} {g3} showControls={false} {showGrid} />
+      <EllipticCurveView {g2} {g3} {showGrid} />
     </div>
   {/if}
 {/if}

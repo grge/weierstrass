@@ -4,17 +4,14 @@
   import ModularFormPane from "./ModularFormPane.svelte";
   import EllipticCurvePane from "./EllipticCurvePane.svelte";
   import PaneCard from "./PaneCard.svelte";
-  import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import { basisFromTau, tauFromBasis } from "$lib/lattice";
   import { compileExpression } from "$lib/expression/compile";
   import { computeG2G3 } from "$lib/curve";
-  import { wpEval, wpPrimeEval } from "$lib/math";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
 
   let omega1: Vec2 = $state({ x: 1, y: 0 });
   let omega2: Vec2 = $state({ x: 0.25, y: 1.2 });
-  let zoom: number = $state(0.8);
-  let pan: Vec2 = $state({ x: 0.8, y: 0.7 });
+
   let colorMode: ColorMode = $state("dusk");
   let halo:          number = $state(1);
   let showHalo:      boolean = $state(false);
@@ -62,8 +59,6 @@
     tau: { x: 0.25, y: 1.2 },
     scale: 1,
     angle: 0,
-    zoom: 0.8,
-    pan: { x: 0.8, y: 0.7 },
     colorMode: "dusk" as ColorMode,
     viewMode: "plane" as ViewMode,
     tileSize: 512,
@@ -130,16 +125,7 @@
       p.set("angle", String(roundedAngle));
     }
 
-    // zoom: only include if different from default
-    if (r4(zoom) !== DEFAULTS.zoom) {
-      p.set("zoom", String(r4(zoom)));
-    }
 
-    // pan: only include if different from default
-    const roundedPan = { x: r4(pan.x), y: r4(pan.y) };
-    if (roundedPan.x !== DEFAULTS.pan.x || roundedPan.y !== DEFAULTS.pan.y) {
-      p.set("pan", `${roundedPan.x},${roundedPan.y}`);
-    }
 
     // colorMode: only include if different from default
     if (colorMode !== DEFAULTS.colorMode) {
@@ -242,8 +228,7 @@
     omega1 = basis.omega1;
     omega2 = basis.omega2;
 
-    zoom = parseNum(p.get("zoom"), 0.8);
-    pan = parsePair(p.get("pan"), { x: 0.8, y: 0.7 });
+
     colorMode = parseColorMode(p.get("color"));
     halo = parseNum(p.get("halo"), 1.0);
     viewMode = p.get("view") === "torus" ? "torus" : "plane";
@@ -284,7 +269,7 @@
   });
 
   $effect(() => {
-    void [omega1, omega2, zoom, pan.x, pan.y, colorMode,
+    void [omega1, omega2, colorMode,
           halo, viewMode, tileSize, terms, modularTileSize, modularTerms, showGrid, showLattice, showCell,
           showSpecialPoints, showHalo, showOmega, expr, primaryPane, modularForm];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
@@ -308,8 +293,6 @@
     const basis = basisFromTau(DEFAULTS.tau, DEFAULTS.scale, DEFAULTS.angle);
     omega1 = basis.omega1;
     omega2 = basis.omega2;
-    zoom = DEFAULTS.zoom;
-    pan = { ...DEFAULTS.pan };
     colorMode = DEFAULTS.colorMode;
     halo = DEFAULTS.halo;
     showHalo = DEFAULTS.showHalo;
@@ -358,8 +341,7 @@
           mode="primary"
           bind:omega1
           bind:omega2
-          bind:zoom
-          bind:pan
+
           {tau}
           renderMode={COLOR_MODE_INDEX[colorMode]}
           {halo}
@@ -458,8 +440,7 @@
             isPrimary={primaryPane === "ellipticFunction"}
             bind:omega1
             bind:omega2
-            bind:zoom
-            bind:pan
+
             {tau}
             renderMode={COLOR_MODE_INDEX[colorMode]}
             {halo}
@@ -553,7 +534,7 @@
               <line x1="7" y1="0" x2="7" y2="14" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
               <line x1="21" y1="0" x2="21" y2="14" stroke="rgba(160,210,255,0.35)" stroke-width="1"/>
             </svg>
-            Complex grid
+            Grid
           </label>
 
           <label class="overlay-row" class:torus-disabled={viewMode === "torus"}>

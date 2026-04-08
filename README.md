@@ -85,7 +85,13 @@ Shared GLSL: complex arithmetic helpers and all four colour palette functions li
 src/lib/
   math.ts                    — wp, wp', Newton zero-finding, coordinate transforms
   lattice.ts                 — lattice arithmetic, τ↔basis conversion, canonicalization
+  lattice-utils.ts           — shared lattice helpers (scale, normalization, scaling)
   curve.ts                   — elliptic curve geometry: g₂/g₃ computation, cubic roots, real interval sampling
+  grid-renderer.ts           — shared Cartesian grid, ticks, labels, and step selection
+  overlay-styles.ts          — centralized overlay colours, weights, and label formatting
+  overlay-draw.ts            — shared overlay drawing primitives (axes, handles, vectors)
+  canvas-size.ts             — ResizeObserver/DPR helpers for responsive canvas rendering
+  lerp-loop.ts               — reusable animation loop for smooth camera interpolation
   gl.ts                      — WebGL 2.0 resource lifecycle, expression compilation, two-pass rendering
   modular_gl.ts              — single-pass modular function renderer
   types.ts                   — shared TypeScript types
@@ -103,15 +109,15 @@ src/lib/
     colour.glsl              — HSV, cosine palette, four colour modes (shared)
 
 src/routes/
-  +page.svelte               — application state, URL serialisation, expression compilation
+  +page.svelte               — application state, URL serialisation, shared coordination, expression compilation
   PaneCard.svelte            — collapsible sidebar card with LED promote button
-  EllipticFunctionPane.svelte  — elliptic function: primary/sidebar mode wrapper
-  EllipticFunctionView.svelte  — main canvas, pan/zoom/drag interaction, overlays
+  EllipticFunctionPane.svelte  — elliptic-function pane UI (primary/sidebar presentation, expression + scale controls)
+  EllipticFunctionView.svelte  — elliptic-function rendering and direct interaction
   ExpressionOverlay.svelte   — expression editor and view mode toggle
-  ModularFormPane.svelte     — modular form: primary/sidebar mode wrapper
-  ModularFormView.svelte     — τ picker with modular background canvas
-  EllipticCurvePane.svelte   — elliptic curve: primary/sidebar mode wrapper
-  EllipticCurveView.svelte   — elliptic curve rendering with smooth camera animation
+  ModularFormPane.svelte     — modular-form pane UI (presets, modular-form controls)
+  ModularFormView.svelte     — τ-plane rendering and direct interaction
+  EllipticCurvePane.svelte   — elliptic-curve pane presentation wrapper
+  EllipticCurveView.svelte   — elliptic-curve rendering with smooth camera animation and shared grid styling
 ```
 
 ---
