@@ -2,60 +2,56 @@
   import { onMount, untrack } from "svelte";
   import {
     computeAxisBounds,
+    computeG2G3,
     cubicRoots,
     realIntervals,
     sampleInterval,
+    sampleStepsForViewport,
+    visibleIntervalSegment,
+    type Branch,
   } from "$lib/curve";
   import { drawGridWithTicksXY } from "$lib/grid-renderer";
   import { OVERLAY_COLORS, OVERLAY_WEIGHTS } from "$lib/overlay-styles";
   import { createLerpLoop } from "$lib/lerp-loop";
   import type { LerpLoop } from "$lib/lerp-loop";
   import { observeSize } from "$lib/canvas-size";
-  import type { Branch } from "$lib/curve";
-
-  // ── Props ──────────────────────────────────────────────────────────────────
+  import type { Vec2 } from "$lib/types";
 
   let {
-    g2 = 0,
-    g3 = 0,
+    omega1,
+    omega2,
     fillViewport = false,
     showGrid = false,
   }: {
-    g2: number;
-    g3: number;
+    omega1: Vec2;
+    omega2: Vec2;
     fillViewport?: boolean;
     showGrid?: boolean;
   } = $props();
-
-  // ── DOM refs ───────────────────────────────────────────────────────────────
 
   let container: HTMLDivElement;
   let canvas: HTMLCanvasElement;
   let cssW = $state(320);
   let cssH = $state(240);
 
-  // ── Camera / view state ────────────────────────────────────────────────────
-  // Log-scale coordinate system:
-  //   cx = centre x = (xMin + xMax) / 2
-  //   sx = log of x-width = log(xMax - xMin)
-  //   sy = log of y-height = log(2 * yMax)
-
   type CamState = { cx: number; sx: number; sy: number };
 
   let cam: CamState    = { cx: 0, sx: Math.log(4), sy: Math.log(4) };
   let target: CamState = { cx: 0, sx: Math.log(4), sy: Math.log(4) };
   let camInitialized = false;
-  let userCamera = $state(false);  // true = manual pan/zoom, false = auto-zoom
+  let userCamera = $state(false);
   let loop: LerpLoop | null = null;
 
-  const LERP_T    = 0.15;
-  const CAM_EPS   = 1e-4;
+  const LERP_T = 0.15;
+  const CAM_EPS = 1e-4;
   const ZOOM_SPEED = 0.1;
 
-  // Pan drag state
-  let dragStart: { px: number; cx: number } | null = null;
+  let panDragStart: { px: number; cx: number } | null = null;
 
-  // ── Coordinate transforms ──────────────────────────────────────────────────
+  const curveData = $derived.by(() => {
+    const coeffs = computeG2G3(omega1, omega2);
+    return { g2: coeffs.g2, g3: coeffs.g3, roots: cubicRoots(coeffs.g2, coeffs.g3) };
+  });
 
   function camToViewport(c: CamState): { xMin: number; xMax: number; yMax: number } {
     const hw = Math.exp(c.sx) / 2;
@@ -71,7 +67,22 @@
     };
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  function worldToCanvas(wx: number, wy: number, viewport: { xMin: number; xMax: number; yMax: number }) {
+    return {
+      x: ((wx - viewport.xMin) / (viewport.xMax - viewport.xMin)) * cssW,
+      y: ((viewport.yMax - wy) / (2 * viewport.yMax)) * cssH,
+    };
+  }
+
+  function drawRootDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
+    ctx.fillStyle = "rgba(255, 185, 95, 0.95)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   function drawFrame() {
     if (!canvas || cssW <= 0 || cssH <= 0) return;
@@ -89,19 +100,14 @@
 
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const { xMin, xMax, yMax } = camToViewport(cam);
+    const viewport = camToViewport(cam);
+    const { xMin, xMax, yMax } = viewport;
+    const { g2, g3, roots } = curveData;
+    const toCanvas = (wx: number, wy: number) => worldToCanvas(wx, wy, viewport);
 
-    // Coordinate transform: world (x,y) → CSS pixel (cx,cy)
-    const toCanvas = (wx: number, wy: number) => ({
-      x: ((wx - xMin) / (xMax - xMin)) * cssW,
-      y: ((yMax - wy) / (2 * yMax)) * cssH,
-    });
-
-    // Background
     c.fillStyle = "#171210";
     c.fillRect(0, 0, cssW, cssH);
 
-    // ── Grid ──────────────────────────────────────────────────────────────
     drawGridWithTicksXY(
       c,
       { min: xMin, max: xMax },
@@ -121,7 +127,6 @@
       },
     );
 
-    // ── Axes ──────────────────────────────────────────────────────────────
     const origin = toCanvas(0, 0);
     if (!showGrid) {
       c.strokeStyle = OVERLAY_COLORS.gridAxisNoGrid;
@@ -137,12 +142,12 @@
       c.beginPath(); c.moveTo(origin.x, 0); c.lineTo(origin.x, cssH); c.stroke();
     }
 
-    // ── Curve branches ────────────────────────────────────────────────────
-    c.strokeStyle = "rgba(255, 200, 130, 0.9)";
-    c.lineWidth = 1.5;
     c.lineJoin = "round";
 
     function drawBranch(branch: Branch) {
+      c.strokeStyle = "rgba(255, 200, 130, 0.95)";
+      c.lineWidth = 1.6;
+
       c.beginPath();
       for (let i = 0; i < branch.xs.length; i++) {
         const pt = toCanvas(branch.xs[i], branch.yPos[i]);
@@ -160,30 +165,28 @@
       c.stroke();
     }
 
+    const xPad = 0.08 * (xMax - xMin);
     for (const [lo, hi] of realIntervals(g2, g3)) {
-      const branch = sampleInterval(g2, g3, lo, hi, xMax, 200);
+      const segment = visibleIntervalSegment(lo, hi, xMin, xMax, xPad);
+      if (!segment) continue;
+      const [segLo, segHi] = segment;
+      const segRight = segHi ?? (xMax + xPad);
+      const steps = sampleStepsForViewport(segLo, segRight, cssW);
+      const branch = sampleInterval(g2, g3, segLo, segHi, xMax + xPad, steps);
       drawBranch(branch);
     }
 
-    // ── Root markers ──────────────────────────────────────────────────────
-    c.fillStyle = "rgba(255, 155, 50, 0.95)";
-    for (const r of cubicRoots(g2, g3)) {
-      if (!Number.isFinite(r)) continue;
-      const pt = toCanvas(r, 0);
-      c.beginPath();
-      c.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
-      c.fill();
+    for (const x of roots) {
+      const pt = toCanvas(x, 0);
+      drawRootDot(c, pt.x, pt.y);
     }
 
-    // ── Equation label ────────────────────────────────────────────────────
     c.fillStyle = "rgba(255, 220, 180, 0.45)";
     c.font = "11px monospace";
     c.textAlign = "left";
     c.textBaseline = "bottom";
     c.fillText("y² = 4x³ − g₂x − g₃", 8, cssH - 4);
   }
-
-  // ── Interaction handlers ───────────────────────────────────────────────────
 
   function handleWheel(e: WheelEvent) {
     if (!canvas || cssW <= 0 || cssH <= 0) return;
@@ -193,11 +196,8 @@
 
     const rect = canvas.getBoundingClientRect();
     const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-
-    const { xMin, xMax, yMax } = camToViewport(cam);
+    const { xMin, xMax } = camToViewport(cam);
     const wx = xMin + (px / cssW) * (xMax - xMin);
-    const wy = yMax - (py / cssH) * (2 * yMax);
 
     const zoomFactor = e.deltaY > 0 ? 1 + ZOOM_SPEED : 1 - ZOOM_SPEED;
     const newSx = cam.sx + Math.log(zoomFactor);
@@ -214,33 +214,31 @@
   function handlePointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     userCamera = true;
-    dragStart = { px: e.clientX, cx: cam.cx };
+    panDragStart = { px: e.clientX, cx: cam.cx };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function handlePointerMove(e: PointerEvent) {
-    if (!dragStart) return;
+    if (!panDragStart) return;
     const { xMin, xMax } = camToViewport(cam);
-    const pxDelta = e.clientX - dragStart.px;
+    const pxDelta = e.clientX - panDragStart.px;
     const worldDelta = -(pxDelta / cssW) * (xMax - xMin);
-    const newCx = dragStart.cx + worldDelta;
+    const newCx = panDragStart.cx + worldDelta;
     cam.cx = newCx;
     target.cx = newCx;
     drawFrame();
   }
 
   function handlePointerUp() {
-    dragStart = null;
+    panDragStart = null;
   }
 
   function handleDoubleClick() {
     userCamera = false;
-    const bounds = computeAxisBounds(g2, g3);
+    const bounds = computeAxisBounds(curveData.g2, curveData.g3);
     target = boundsToCam(bounds);
     loop?.restart();
   }
-
-  // ── Mount / lifecycle ──────────────────────────────────────────────────────
 
   onMount(() => {
     const stopObserving = observeSize(container, (w, h) => {
@@ -272,14 +270,12 @@
     };
   });
 
-  // ── Reactive triggers ──────────────────────────────────────────────────────
-
   $effect(() => {
-    void [g2, g3, cssW, cssH];
+    void [curveData.g2, curveData.g3, cssW, cssH];
 
     userCamera = false;
 
-    const bounds = computeAxisBounds(g2, g3);
+    const bounds = computeAxisBounds(curveData.g2, curveData.g3);
     const newTarget = boundsToCam(bounds);
 
     if (!camInitialized) {
@@ -293,6 +289,7 @@
 
   $effect(() => {
     showGrid;
+    curveData.roots;
     drawFrame();
   });
 </script>

@@ -4,6 +4,12 @@ All notable changes to this project will be documented here.
 
 ---
 
+## 2026-04-09
+
+### Changed
+- **Canonical curve state refactor:** The app now treats elliptic-curve state canonically as `(τ, scale, angle)` and derives the lattice basis from that representation, simplifying state flow between the lattice, elliptic-function, modular-form, and curve views.
+- **Elliptic curve pane simplification:** The curve view remains a passive derived visualization, with real roots shown as simple dot markers and curve sampling refined for a smoother display across zoom levels.
+
 ## 2026-04-08
 
 ### Added

@@ -1,31 +1,33 @@
 <script lang="ts">
   import EllipticCurveView from "./EllipticCurveView.svelte";
 
+  import type { Vec2 } from "$lib/types";
+
   let {
     mode,
     isPrimary = false,
-    g2 = 0,
-    g3 = 0,
+    omega1,
+    omega2,
     showGrid = false,
   }: {
     mode: "primary" | "sidebar";
     isPrimary?: boolean;
-    g2?: number;
-    g3?: number;
+    omega1: Vec2;
+    omega2: Vec2;
     showGrid?: boolean;
   } = $props();
 </script>
 
 {#if mode === "primary"}
-  <!-- Primary mode: full-size curve view -->
+  <!-- Primary mode: full-size view of the plotted cubic. -->
   <div class="curve-viewport">
-    <EllipticCurveView {g2} {g3} fillViewport={true} {showGrid} />
+    <EllipticCurveView {omega1} {omega2} fillViewport={true} {showGrid} />
   </div>
 {:else}
-  <!-- Sidebar mode: thumbnail (hidden when promoted) -->
+  <!-- Sidebar mode: thumbnail preview of the same curve view. -->
   {#if !isPrimary}
     <div class="curve-thumbnail">
-      <EllipticCurveView {g2} {g3} {showGrid} />
+      <EllipticCurveView {omega1} {omega2} {showGrid} />
     </div>
   {/if}
 {/if}

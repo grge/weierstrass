@@ -4,13 +4,14 @@
   import ModularFormPane from "./ModularFormPane.svelte";
   import EllipticCurvePane from "./EllipticCurvePane.svelte";
   import PaneCard from "./PaneCard.svelte";
-  import { basisFromTau, tauFromBasis } from "$lib/lattice";
+  import { basisFromTau, tauFromBasis, getScale } from "$lib/lattice";
   import { compileExpression } from "$lib/expression/compile";
   import { computeG2G3 } from "$lib/curve";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
 
-  let omega1: Vec2 = $state({ x: 1, y: 0 });
-  let omega2: Vec2 = $state({ x: 0.25, y: 1.2 });
+  let tauState: Vec2 = $state({ x: 0.25, y: 1.2 });
+  let scaleState: number = $state(1);
+  let angleState: number = $state(0);
 
   let colorMode: ColorMode = $state("dusk");
   let halo:          number = $state(1);
@@ -45,6 +46,17 @@
   let exprGlslBody: string = $state("");  // cached compiled GLSL body
 
   // ── Curve view state ──────────────────────────────────────────────────────
+  const basis = $derived(basisFromTau(tauState, scaleState, angleState));
+  const omega1 = $derived(basis.omega1);
+  const omega2 = $derived(basis.omega2);
+
+  function setBasis(nextOmega1: Vec2, nextOmega2: Vec2) {
+    const nextTau = tauFromBasis(nextOmega1, nextOmega2);
+    tauState = { x: nextTau.x, y: Math.max(nextTau.y, 0.05) };
+    scaleState = getScale(nextOmega1);
+    angleState = Math.atan2(nextOmega1.y, nextOmega1.x);
+  }
+
   const g2g3 = $derived(computeG2G3(omega1, omega2, terms));
   const g2 = $derived(g2g3.g2);
   const g3 = $derived(g2g3.g3);
@@ -102,9 +114,9 @@
   }
 
   function encodeState() {
-    const tau = tauFromBasis(omega1, omega2);
-    const scale = Math.sqrt(omega1.x ** 2 + omega1.y ** 2);
-    const angle = Math.atan2(omega1.y, omega1.x);
+    const tau = tauState;
+    const scale = scaleState;
+    const angle = angleState;
     const p = new URLSearchParams();
 
     // tau: only include if different from default
@@ -221,13 +233,9 @@
     };
 
     const tau = parsePair(p.get("tau"), { x: 0.25, y: 1.2 });
-    const scale = parseNum(p.get("scale"), 1);
-    const angle = parseNum(p.get("angle"), 0);
-    const tauY = Math.max(Math.abs(tau.y) < 0.05 ? 0.05 : tau.y, 0.05);
-    const basis = basisFromTau({ x: tau.x, y: tauY }, scale, angle);
-    omega1 = basis.omega1;
-    omega2 = basis.omega2;
-
+    tauState = { x: tau.x, y: Math.max(Math.abs(tau.y) < 0.05 ? 0.05 : tau.y, 0.05) };
+    scaleState = parseNum(p.get("scale"), 1);
+    angleState = parseNum(p.get("angle"), 0);
 
     colorMode = parseColorMode(p.get("color"));
     halo = parseNum(p.get("halo"), 1.0);
@@ -269,7 +277,7 @@
   });
 
   $effect(() => {
-    void [omega1, omega2, colorMode,
+    void [tauState.x, tauState.y, scaleState, angleState, colorMode,
           halo, viewMode, tileSize, terms, modularTileSize, modularTerms, showGrid, showLattice, showCell,
           showSpecialPoints, showHalo, showOmega, expr, primaryPane, modularForm];
     if (_skipNextWrite) { _skipNextWrite = false; return; }
@@ -280,7 +288,7 @@
 
   // ── App state ─────────────────────────────────────────────────────────────
 
-  const tau = $derived(tauFromBasis(omega1, omega2));
+  const tau = $derived(tauState);
 
   const COLOR_MODE_INDEX: Record<ColorMode, RenderMode> = {
     classic: 0,
@@ -290,9 +298,9 @@
   };
 
   function reset() {
-    const basis = basisFromTau(DEFAULTS.tau, DEFAULTS.scale, DEFAULTS.angle);
-    omega1 = basis.omega1;
-    omega2 = basis.omega2;
+    tauState = { ...DEFAULTS.tau };
+    scaleState = DEFAULTS.scale;
+    angleState = DEFAULTS.angle;
     colorMode = DEFAULTS.colorMode;
     halo = DEFAULTS.halo;
     showHalo = DEFAULTS.showHalo;
@@ -339,9 +347,9 @@
       {#if primaryPane === "ellipticFunction"}
         <EllipticFunctionPane
           mode="primary"
-          bind:omega1
-          bind:omega2
-
+          {omega1}
+          {omega2}
+          onBasisChange={setBasis}
           {tau}
           renderMode={COLOR_MODE_INDEX[colorMode]}
           {halo}
@@ -367,8 +375,9 @@
       {:else if primaryPane === "modularForm"}
         <ModularFormPane
           mode="primary"
-          bind:omega1
-          bind:omega2
+          {omega1}
+          {omega2}
+          onBasisChange={setBasis}
           bind:modularTileSize
           bind:modularTerms
           bind:modularForm
@@ -378,8 +387,8 @@
       {:else}
         <EllipticCurvePane
           mode="primary"
-          {g2}
-          {g3}
+          {omega1}
+          {omega2}
           {showGrid}
         />
       {/if}
@@ -438,9 +447,9 @@
           <EllipticFunctionPane
             mode="sidebar"
             isPrimary={primaryPane === "ellipticFunction"}
-            bind:omega1
-            bind:omega2
-
+            {omega1}
+            {omega2}
+            onBasisChange={setBasis}
             {tau}
             renderMode={COLOR_MODE_INDEX[colorMode]}
             {halo}
@@ -476,8 +485,9 @@
           <ModularFormPane
             mode="sidebar"
             isPrimary={primaryPane === "modularForm"}
-            bind:omega1
-            bind:omega2
+            {omega1}
+            {omega2}
+            onBasisChange={setBasis}
             bind:modularTileSize
             bind:modularTerms
             bind:modularForm
@@ -497,8 +507,8 @@
           <EllipticCurvePane
             mode="sidebar"
             isPrimary={primaryPane === "ellipticCurve"}
-            {g2}
-            {g3}
+            {omega1}
+            {omega2}
             {showGrid}
           />
         {/snippet}

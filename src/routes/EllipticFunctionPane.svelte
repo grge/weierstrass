@@ -3,7 +3,7 @@
   import ExpressionOverlay from "./ExpressionOverlay.svelte";
   import type { Vec2, ColorMode, ViewMode, RenderMode } from "$lib/types";
   import { EXPR_PRESETS } from "$lib/expr-presets";
-  import { getScale, scaleLattice, normalizeLattice } from "$lib/lattice";
+  import { getScale, scaleLattice, normalizeLattice, basisFromTau, tauFromBasis } from "$lib/lattice";
 
   let showPresetDropdown = $state(false);
 
@@ -11,8 +11,8 @@
   let {
     mode,
     isPrimary = false,
-    omega1 = $bindable(),
-    omega2 = $bindable(),
+    omega1,
+    omega2,
     tau,
     renderMode,
     halo,
@@ -34,6 +34,7 @@
     colorMode = $bindable(),
     g2 = 0,
     g3 = 0,
+    onBasisChange,
   }: {
     mode: "primary" | "sidebar";
     isPrimary?: boolean;
@@ -60,11 +61,14 @@
     colorMode: ColorMode;
     g2?: number;
     g3?: number;
+    onBasisChange?: (omega1: Vec2, omega2: Vec2) => void;
   } = $props();
 
   // ── Scale controls ──────────────────────────────────────────────────
   let scaleValue = $derived(getScale(omega1));
   let logScale = $derived(Math.log2(scaleValue));
+  let angleValue = $derived(Math.atan2(omega1.y, omega1.x));
+  let angleDegrees = $derived((angleValue * 180) / Math.PI);
 
   function onScaleSlider(e: Event) {
     const v = parseFloat((e.target as HTMLInputElement).value);
@@ -73,14 +77,24 @@
     if (currentScale < 1e-12) return;
     const factor = newScale / currentScale;
     const scaled = scaleLattice(omega1, omega2, factor);
-    omega1 = scaled.omega1;
-    omega2 = scaled.omega2;
+    onBasisChange?.(scaled.omega1, scaled.omega2);
   }
 
   function resetScale() {
     const normalized = normalizeLattice(omega1, omega2);
-    omega1 = normalized.omega1;
-    omega2 = normalized.omega2;
+    onBasisChange?.(normalized.omega1, normalized.omega2);
+  }
+
+  function onAngleSlider(e: Event) {
+    const deg = parseFloat((e.target as HTMLInputElement).value);
+    const angle = (deg * Math.PI) / 180;
+    const basis = basisFromTau(tauFromBasis(omega1, omega2), getScale(omega1), angle);
+    onBasisChange?.(basis.omega1, basis.omega2);
+  }
+
+  function resetAngle() {
+    const basis = basisFromTau(tauFromBasis(omega1, omega2), getScale(omega1), 0);
+    onBasisChange?.(basis.omega1, basis.omega2);
   }
 </script>
 
@@ -88,8 +102,9 @@
   <!-- Primary mode: full-size viewport with overlay expression editor -->
   <div class="primary-viewport">
     <EllipticFunctionView
-      bind:omega1
-      bind:omega2
+      {omega1}
+      {omega2}
+      {onBasisChange}
       {tau}
       mode={renderMode}
       {halo}
@@ -131,8 +146,9 @@
       <!-- Mini elliptic function view -->
       <div class="ef-canvas-stack">
         <EllipticFunctionView
-        bind:omega1
-        bind:omega2
+        {omega1}
+        {omega2}
+        {onBasisChange}
         {tau}
         mode={renderMode}
         {halo}
@@ -240,6 +256,20 @@
       min="-3" max="3" step="0.01"
       value={logScale}
       oninput={onScaleSlider}
+    />
+  </div>
+
+  <div class="scale-section">
+    <div class="scale-header">
+      <span>Angle (arg ω₁)</span>
+      <button class="reset-scale-btn" onclick={resetAngle} title="Reset angle to 0°">0°</button>
+      <span class="val">{angleDegrees.toFixed(1)}°</span>
+    </div>
+    <input
+      type="range"
+      min="-180" max="180" step="0.1"
+      value={angleDegrees}
+      oninput={onAngleSlider}
     />
   </div>
 {/if}

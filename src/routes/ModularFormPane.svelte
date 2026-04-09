@@ -6,13 +6,14 @@
   let {
     mode,
     isPrimary = false,
-    omega1 = $bindable(),
-    omega2 = $bindable(),
+    omega1,
+    omega2,
     modularTileSize = $bindable(),
     modularTerms = $bindable(),
     modularForm = $bindable(),
     colorMode,
     showGrid,
+    onBasisChange,
   }: {
     mode: "primary" | "sidebar";
     isPrimary?: boolean;
@@ -23,6 +24,7 @@
     modularForm: "j" | "delta" | "e4" | "e6";
     colorMode: RenderMode;
     showGrid: boolean;
+    onBasisChange?: (omega1: Vec2, omega2: Vec2) => void;
   } = $props();
 
   // References to view instances for button actions
@@ -40,8 +42,9 @@
   <div class="modular-viewport">
     <ModularFormView
       bind:this={primaryViewInstance}
-      bind:omega1
-      bind:omega2
+      {omega1}
+      {omega2}
+      {onBasisChange}
       bind:modularForm
       tauTileSize={modularTileSize}
       tauTerms={modularTerms}
@@ -90,8 +93,9 @@
       <div class="modular-thumbnail">
         <ModularFormView
           bind:this={sidebarViewInstance}
-          bind:omega1
-          bind:omega2
+          {omega1}
+          {omega2}
+          {onBasisChange}
           bind:modularForm
           tauTileSize={modularTileSize}
           tauTerms={modularTerms}

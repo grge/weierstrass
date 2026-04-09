@@ -15,19 +15,21 @@
   // ── Props ──────────────────────────────────────────────────────────────────
 
   let {
-    omega1 = $bindable(),
-    omega2 = $bindable(),
+    omega1,
+    omega2,
     colorMode = 2,
     showGrid = false,
     tauTileSize = $bindable(400),
     tauTerms = $bindable(20),
     fillViewport = false,
     modularForm = $bindable("j"),
+    onBasisChange,
   }: {
     omega1: Vec2; omega2: Vec2; colorMode?: RenderMode;
     showGrid?: boolean; tauTileSize: number; tauTerms: number;
     fillViewport?: boolean;
     modularForm?: "j" | "delta" | "e4" | "e6";
+    onBasisChange?: (omega1: Vec2, omega2: Vec2) => void;
   } = $props();
 
   // ── DOM refs ───────────────────────────────────────────────────────────────
@@ -106,8 +108,7 @@
     const angle = Math.atan2(omega1.y, omega1.x);
     const scale = getScale(omega1);
     const basis = basisFromTau(normalized, scale, angle);
-    omega1 = basis.omega1;
-    omega2 = basis.omega2;
+    onBasisChange?.(basis.omega1, basis.omega2);
   }
 
   // ── Animation state ────────────────────────────────────────────────────────
@@ -141,19 +142,20 @@
       const elapsed = now - animStart;
       const progress = Math.min(elapsed / animDuration, 1);
       const eased = easeInOutCubic(progress);
-      omega1 = {
-        x: animStartOmega1.x + (animTargetOmega1.x - animStartOmega1.x) * eased,
-        y: animStartOmega1.y + (animTargetOmega1.y - animStartOmega1.y) * eased,
-      };
-      omega2 = {
-        x: animStartOmega2.x + (animTargetOmega2.x - animStartOmega2.x) * eased,
-        y: animStartOmega2.y + (animTargetOmega2.y - animStartOmega2.y) * eased,
-      };
+      onBasisChange?.(
+        {
+          x: animStartOmega1.x + (animTargetOmega1.x - animStartOmega1.x) * eased,
+          y: animStartOmega1.y + (animTargetOmega1.y - animStartOmega1.y) * eased,
+        },
+        {
+          x: animStartOmega2.x + (animTargetOmega2.x - animStartOmega2.x) * eased,
+          y: animStartOmega2.y + (animTargetOmega2.y - animStartOmega2.y) * eased,
+        },
+      );
       if (progress < 1) {
         rafId = requestAnimationFrame(handleFrame);
       } else {
-        omega1 = animTargetOmega1;
-        omega2 = animTargetOmega2;
+        onBasisChange?.(animTargetOmega1, animTargetOmega2);
         animating = false;
       }
     };

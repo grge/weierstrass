@@ -15,8 +15,8 @@
   // ── Props ──────────────────────────────────────────────────────────────────
 
   let {
-    omega1 = $bindable({ x: 1, y: 0 }),
-    omega2 = $bindable({ x: 0.25, y: 1.2 }),
+    omega1,
+    omega2,
     tau,
     mode,
     halo,
@@ -35,8 +35,9 @@
     g2 = 0,
     g3 = 0,
     showOverlay = true,
+    onBasisChange,
   }: {
-    omega1?: Vec2; omega2?: Vec2;
+    omega1: Vec2; omega2: Vec2;
     tau: Vec2; mode: RenderMode; halo: number; tileSize: number; terms?: number;
     showGrid: boolean; showLattice: boolean; showCell: boolean;
     showSpecialPoints: boolean; showHalo: boolean; showOmega: boolean; viewMode?: ViewMode;
@@ -46,6 +47,7 @@
     g2?: number;
     g3?: number;
     showOverlay?: boolean;
+    onBasisChange?: (omega1: Vec2, omega2: Vec2) => void;
   } = $props();
 
   // ── View-internal state (camera) ───────────────────────────────────────────
@@ -367,8 +369,11 @@
       return;
     }
     const next = pointerToWorld(e);
-    if (drag.kind === "omega1") omega1 = clampToPositiveDet(next, omega2, true);
-    else omega2 = clampToPositiveDet(next, omega1, false);
+    if (drag.kind === "omega1") {
+      onBasisChange?.(clampToPositiveDet(next, omega2, true), omega2);
+    } else {
+      onBasisChange?.(omega1, clampToPositiveDet(next, omega1, false));
+    }
     hoverAnchor = drag.kind;
   }
 

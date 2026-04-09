@@ -254,5 +254,30 @@ export function computeAxisBounds(
   return { xMin, xMax, yMax };
 }
 
+export function visibleIntervalSegment(
+  lo: number,
+  hi: number | null,
+  viewXMin: number,
+  viewXMax: number,
+  pad = 0,
+): [number, number | null] | null {
+  const segLo = Math.max(lo, viewXMin - pad);
+
+  if (hi === null) {
+    const segHi = viewXMax + pad;
+    return segHi > segLo ? [segLo, null] : null;
+  }
+
+  const segHi = Math.min(hi, viewXMax + pad);
+  return segHi > segLo ? [segLo, segHi] : null;
+}
+
+export function sampleStepsForViewport(x0: number, x1: number, cssWidth: number): number {
+  const span = Math.max(x1 - x0, 1e-9);
+  const pixelsPerWorld = cssWidth / span;
+  const visiblePixelWidth = Math.max(0, Math.min(cssWidth, span * pixelsPerWorld));
+  return Math.max(96, Math.min(1200, Math.ceil(visiblePixelWidth / 3)));
+}
+
 // pickGridStep has been moved to grid-renderer.ts
 export { pickGridStep } from "./grid-renderer";
