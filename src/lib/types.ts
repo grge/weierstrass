@@ -38,9 +38,15 @@ export type DragState =
   | { kind: "omega1" }
   | { kind: "omega2" };
 
-export type ColorMode = "classic" | "ember" | "dusk" | "contours";
+export type ColorMode =
+  | "classic"
+  | "ember"
+  | "dusk"
+  | "contours"
+  | "phaseBands"
+  | "neon";
 export type ViewMode = "plane" | "torus";
-export type RenderMode = 0 | 1 | 2 | 3;
+export type RenderMode = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type RenderParams = {
   omega1: Vec2;

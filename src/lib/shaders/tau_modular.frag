@@ -95,7 +95,9 @@ void main() {
   if      (u_mode == 0) color = paletteClassic(w);
   else if (u_mode == 1) color = paletteEmber(w);
   else if (u_mode == 2) color = paletteDusk(w);
-  else                  color = paletteContours(w);
+  else if (u_mode == 3) color = paletteContours(w);
+  else if (u_mode == 4) color = palettePhaseBands(w);
+  else                  color = paletteNeon(w);
 
   // Consistent gamma lift with tile shader
   color = pow(clamp(color, 0.0, 1.0), vec3(0.8));
