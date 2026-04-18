@@ -66,7 +66,7 @@
   function r4(n: number) { return Math.round(n * 10000) / 10000; }
   const COLOR_MODES: ColorMode[] = [
     "classic", "ember", "dusk", "contours",
-    "phaseBands", "neon",
+    "phaseBands", "neon", "florian",
   ];
 
   // Default values for all state parameters
@@ -300,6 +300,7 @@
     contours: 3,
     phaseBands: 4,
     neon: 5,
+    florian: 6,
   };
 
   function reset() {
@@ -532,6 +533,7 @@
               <option value="contours">Contours</option>
               <option value="phaseBands">Phase bands</option>
               <option value="neon">Neon</option>
+              <option value="florian">Florian</option>
             </select>
           </label>
         </div>

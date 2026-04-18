@@ -79,7 +79,8 @@ void main() {
   else if (u_mode == 2) color = paletteDusk(w);
   else if (u_mode == 3) color = paletteContours(w);
   else if (u_mode == 4) color = palettePhaseBands(w);
-  else                  color = paletteNeon(w);
+  else if (u_mode == 5) color = paletteNeon(w);
+  else                  color = paletteFlorian(w);
 
   // Fixed gamma lift
   color = pow(clamp(color, 0.0, 1.0), vec3(0.8));

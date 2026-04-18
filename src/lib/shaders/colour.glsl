@@ -106,6 +106,19 @@ vec3 palettePhaseBands(vec2 w) {
   );
 }
 
+// 7. Florian: sawtooth in both log|w| (modulus) and arg(w) (argument) simultaneously
+vec3 paletteFlorian(vec2 w) {
+  DomainFeatures f = domainFeatures(w);
+  // Sawtooth in argument direction: N evenly-spaced wedges
+  float N = 12.0;
+  float saw_theta = fract(f.phase01 * N);
+  // Multiply both sawteeth: brightness is high only near the crossing of a
+  // modulus level-ring AND an argument ray, producing a conformal diamond grid.
+  float brightness = f.ring01 * saw_theta;
+  vec3 hue = hsv2rgb(vec3(f.phase01, 0.80, 1.0));
+  return hue * brightness;
+}
+
 // 6. Neon: warm arc-lamp variant rather than blue cyber-neon, so it belongs with the rest
 vec3 paletteNeon(vec2 w) {
   DomainFeatures f = domainFeatures(w);

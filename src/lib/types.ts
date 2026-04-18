@@ -44,9 +44,10 @@ export type ColorMode =
   | "dusk"
   | "contours"
   | "phaseBands"
-  | "neon";
+  | "neon"
+  | "florian";
 export type ViewMode = "plane" | "torus";
-export type RenderMode = 0 | 1 | 2 | 3 | 4 | 5;
+export type RenderMode = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export type RenderParams = {
   omega1: Vec2;

@@ -4,6 +4,11 @@ All notable changes to this project will be documented here.
 
 ---
 
+## 2026-04-18
+
+### Added
+- **Florian colour mode:** New domain-colouring palette with simultaneous sawtooth shading in both log|w| (modulus) and arg(w) (argument), producing a conformal diamond grid.
+
 ## 2026-04-09
 
 ### Changed
